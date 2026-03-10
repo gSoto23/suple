@@ -258,10 +258,10 @@
                             <table class="table" id="new-order-items-table" style="margin: 0;">
                                 <thead style="position: sticky; top: 0; background: white; z-index: 1;">
                                     <tr>
-                                        <th>Producto</th>
-                                        <th style="text-align: center;">Cant.</th>
-                                        <th style="text-align: right;">Precio</th>
-                                        <th style="visibility: hidden;">Ac</th>
+                                        <th style="width: 50%;">Producto</th>
+                                        <th style="text-align: center; width: 15%;">Cant.</th>
+                                        <th style="text-align: right; width: 25%;">Precio</th>
+                                        <th style="text-align: center; width: 10%;"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -432,10 +432,10 @@
             total += subtotal;
             return `
                     <tr>
-                        <td style="font-weight: 500;">${escapeHTML(item.name)}</td>
-                        <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
-                        <td style="text-align: right;">${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
-                        <td style="text-align: right;"><button type="button" class="btn btn-sm btn-danger" style="padding: 4px 8px;" onclick="removeItemFromNewOrder(${index})"><i class="fa-solid fa-trash"></i></button></td>
+                        <td style="font-weight: 500; white-space: normal; line-height: 1.2; padding: 12px 8px;">${escapeHTML(item.name)}</td>
+                        <td style="text-align: center; font-weight: bold; padding: 12px 8px;">${item.quantity}</td>
+                        <td style="text-align: right; font-size: 0.95rem; padding: 12px 8px;">${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
+                        <td style="text-align: center; padding: 12px 4px;"><button type="button" class="btn btn-sm btn-danger" style="padding: 6px 10px;" onclick="removeItemFromNewOrder(${index})"><i class="fa-solid fa-trash"></i></button></td>
                     </tr>
                 `;
         }).join('');
