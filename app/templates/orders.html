@@ -255,13 +255,18 @@
                         <!-- Items List -->
                         <div class="table-responsive"
                             style="flex: 1; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; min-height: 150px;">
-                            <table class="table" id="new-order-items-table" style="margin: 0;">
+                            <table class="table" id="new-order-items-table"
+                                style="margin: 0; table-layout: fixed; width: 100%;">
                                 <thead style="position: sticky; top: 0; background: white; z-index: 1;">
                                     <tr>
-                                        <th style="width: 50%;">Producto</th>
-                                        <th style="text-align: center; width: 15%;">Cant.</th>
-                                        <th style="text-align: right; width: 25%;">Precio</th>
-                                        <th style="text-align: center; width: 10%;"></th>
+                                        <th style="width: 45%; padding: 8px 4px; font-size: 0.85rem;">Producto</th>
+                                        <th
+                                            style="text-align: center; width: 20%; padding: 8px 4px; font-size: 0.85rem;">
+                                            Cant.</th>
+                                        <th
+                                            style="text-align: right; width: 25%; padding: 8px 4px; font-size: 0.85rem;">
+                                            Precio</th>
+                                        <th style="text-align: center; width: 10%; padding: 8px 0px;"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -432,10 +437,10 @@
             total += subtotal;
             return `
                     <tr>
-                        <td style="font-weight: 500; white-space: normal; line-height: 1.2; padding: 12px 8px;">${escapeHTML(item.name)}</td>
-                        <td style="text-align: center; font-weight: bold; padding: 12px 8px;">${item.quantity}</td>
-                        <td style="text-align: right; font-size: 0.95rem; padding: 12px 8px;">${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
-                        <td style="text-align: center; padding: 12px 4px;"><button type="button" class="btn btn-sm btn-danger" style="padding: 6px 10px;" onclick="removeItemFromNewOrder(${index})"><i class="fa-solid fa-trash"></i></button></td>
+                        <td style="font-size: 0.8rem; font-weight: 500; white-space: normal; word-break: break-word; line-height: 1.2; padding: 8px 4px;">${escapeHTML(item.name)}</td>
+                        <td style="text-align: center; font-size: 0.85rem; font-weight: bold; padding: 8px 4px;">${item.quantity}</td>
+                        <td style="text-align: right; font-size: 0.85rem; padding: 8px 4px;">${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
+                        <td style="text-align: center; padding: 8px 0px;"><button type="button" class="btn btn-sm btn-danger" style="padding: 4px 6px; font-size: 0.8rem;" onclick="removeItemFromNewOrder(${index})"><i class="fa-solid fa-trash"></i></button></td>
                     </tr>
                 `;
         }).join('');
