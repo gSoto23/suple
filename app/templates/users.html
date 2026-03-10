@@ -91,13 +91,13 @@
             const tbody = document.querySelector('#users-table tbody');
             tbody.innerHTML = users.map(u => `
                 <tr>
-                    <td>${u.name}</td>
-                    <td>${u.email}</td>
-                    <td>${u.role}</td>
+                    <td>${escapeHTML(u.email)}</td>
+                    <td>${escapeHTML(u.name) || '-'}</td>
                     <td><span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                    <td><span class="badge" style="background:var(--color-primary); color:white;">${u.is_superuser ? 'Admin' : 'Usuario'}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-table-action" onclick="openEditUserModal(${u.id}, '${u.name}', '${u.email}', '${u.role}', ${u.is_active})">Editar</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id}, '${u.name}')" style="margin-left: 5px;"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-sm btn-table-action" onclick="editUser(${u.id})">Editar</button>
+                        ${u.id !== 1 ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})" style="margin-left: 5px;"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </td>
                 </tr>
             `).join('');

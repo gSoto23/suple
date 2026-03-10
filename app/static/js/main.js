@@ -25,6 +25,11 @@ class ApiClient {
 
         if (!response.ok) {
             const err = await response.json();
+            if (response.status === 422 && err.detail && Array.isArray(err.detail)) {
+                // Parse FastAPI 422 Validation Error
+                const msgs = err.detail.map(e => `${e.loc[e.loc.length - 1]}: ${e.msg}`).join(', ');
+                throw new Error(`Error de Validación: ${msgs}`);
+            }
             throw new Error(err.detail || 'API Error');
         }
 
@@ -251,4 +256,15 @@ function formatDateTimeCR(dateStr) {
         minute: '2-digit',
         hour12: true
     });
+}
+
+// Global XSS Mitigation Helper
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }

@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # WhatsApp
     WHATSAPP_ACCESS_TOKEN: str = ""
     WHATSAPP_PHONE_NUMBER_ID: str = ""
-    WHATSAPP_VERIFY_TOKEN: str = "suplementos_verify_123"
+    WHATSAPP_VERIFY_TOKEN: str = ""
     
     # n8n
     N8N_WEBHOOK_URL: str = ""

@@ -14,7 +14,7 @@ router = APIRouter()
 async def read_products(
     db: Annotated[AsyncSession, Depends(get_db)],
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(100, le=1000),
     search: Optional[str] = None,
     category: Optional[str] = None,
     stock_low: bool = False,

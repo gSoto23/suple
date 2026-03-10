@@ -1,5 +1,5 @@
 from typing import Any, List, Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.api import deps
@@ -14,7 +14,7 @@ router = APIRouter()
 async def read_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(100, le=1000),
     current_user: User = Depends(deps.get_current_active_admin),
 ) -> Any:
     """

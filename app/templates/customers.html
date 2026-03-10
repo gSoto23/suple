@@ -387,21 +387,21 @@
             const tbody = document.querySelector('#customers-table tbody');
             tbody.innerHTML = customers.map(c => `
                 <tr>
-                    <td><strong>${c.phone || '-'}</strong></td>
-                    <td>${c.full_name}</td>
+                    <td><strong>${escapeHTML(c.phone) || '-'}</strong></td>
+                    <td>${escapeHTML(c.full_name)}</td>
                     <td>
                         ${c.subscriptions && c.subscriptions.length > 0
                     ? c.subscriptions.map(s => `<span class="badge" style="background:var(--color-primary); color:white; margin-right:4px;">Sub #${s.id}</span>`).join('')
                     : '<span style="color: #999;">-</span>'
                 }
                     </td>
-                    <td>${c.email || '-'}</td>
-                    <td>${c.address || '-'}</td>
-                    <td>${c.default_payment_method || '-'}</td>
+                    <td>${escapeHTML(c.email) || '-'}</td>
+                    <td>${escapeHTML(c.address) || '-'}</td>
+                    <td>${escapeHTML(c.default_payment_method) || '-'}</td>
                     <td><span class="badge ${c.is_active ? 'active' : 'inactive'}">${c.is_active ? 'Activo' : 'Inactivo'}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-table-action" onclick="openCustomerModal('${c.phone}')">Ver</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${c.phone}', '${c.full_name}')" style="margin-left: 5px;"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-sm btn-table-action" onclick="openCustomerModal('${escapeHTML(c.phone)}')">Ver</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${escapeHTML(c.phone)}', '${escapeHTML(c.full_name)}')" style="margin-left: 5px;"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');

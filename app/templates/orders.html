@@ -302,7 +302,7 @@
             availableCustomers = await api.get('/customers/');
             const dataList = document.getElementById('customer-list');
             dataList.innerHTML = availableCustomers.map(c =>
-                `<option value="${c.phone} - ${c.full_name}" data-id="${c.id}"></option>`
+                `<option value="${escapeHTML(c.phone)} - ${escapeHTML(c.full_name)}" data-id="${c.id}"></option>`
             ).join('');
 
             // Products are now loaded by loadAllProducts()
@@ -403,7 +403,7 @@
             total += subtotal;
             return `
                     <tr>
-                        <td>${item.name}</td>
+                        <td>${escapeHTML(item.name)}</td>
                         <td>${item.quantity}</td>
                         <td>${window.APP_CONFIG.currency} ${item.price.toLocaleString()}</td>
                         <td>${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
@@ -500,16 +500,16 @@
             tbody.innerHTML = orders.map(o => `
                 <tr>
                     <td>#${o.id}</td>
-                    <td>${o.customer ? o.customer.full_name : 'N/A'}</td>
+                    <td>${o.customer ? escapeHTML(o.customer.full_name) : 'N/A'}</td>
                     <td>${window.APP_CONFIG.currency} ${parseFloat(o.total_amount).toLocaleString()}</td>
-                    <td>${o.payment_method || '-'}</td>
-                    <td><span class="badge ${o.status}">${statusMap[o.status] || o.status}</span></td>
+                    <td>${o.payment_method ? escapeHTML(o.payment_method) : '-'}</td>
+                    <td><span class="badge ${o.status}">${statusMap[o.status] || escapeHTML(o.status)}</span></td>
                     <td>${formatDateCR(o.created_at)}</td>
                     <td style="text-align: center; vertical-align: middle;">${o.has_payment_receipt ? `<a href="#" onclick="event.preventDefault(); openReceiptModal(${o.id}, '${o.payment_receipt_url}', '${o.customer ? o.customer.phone : ''}', '${o.customer ? o.customer.full_name : ''}');" style="color:var(--color-primary); font-size: 1.2rem;" title="Ver Comprobante"><i class="fa-solid fa-file-invoice"></i></a>` : '-'}</td>
                     <td>
                         <button class="btn btn-sm btn-table-action" onclick="openOrderModal(${o.id})">Ver</button>
                     </td>
-                    <td>${o.delivery_address || (o.customer && o.customer.address ? o.customer.address : '-')}</td>
+                    <td>${o.delivery_address ? escapeHTML(o.delivery_address) : (o.customer && o.customer.address ? escapeHTML(o.customer.address) : '-')}</td>
                 </tr>
             `).join('');
         } catch (e) {

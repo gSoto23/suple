@@ -184,9 +184,9 @@
 
             tbody.innerHTML = customers.map(c => `
                 <tr>
-                    <td>${c.phone}</td>
-                    <td>${c.name || 'N/A'}</td>
-                    <td>${c.email || 'N/A'}</td>
+                    <td>${escapeHTML(c.phone)}</td>
+                    <td>${escapeHTML(c.name) || 'N/A'}</td>
+                    <td>${escapeHTML(c.email) || 'N/A'}</td>
                     <td>
                         <button class="btn btn-sm btn-table-action" onclick="openChatModal('${c.phone}')">
                             <i class="fa-solid fa-comments"></i> Ver Chat
@@ -359,9 +359,9 @@
                 // Format date as DD/MM/YYYY HH:mm in Costa Rica Timezone
                 const time = formatDateTimeCR(msg.created_at);
 
-                let content = msg.content;
+                let content = escapeHTML(msg.content);
                 if (msg.message_type === 'image') {
-                    content = `<a href="${msg.content}" target="_blank" style="color: ${isSystem ? (isAdmin ? 'white' : 'blue') : 'blue'}; text-decoration: underline; font-weight: bold;">
+                    content = `<a href="${escapeHTML(msg.content)}" target="_blank" style="color: ${isSystem ? (isAdmin ? 'white' : 'blue') : 'blue'}; text-decoration: underline; font-weight: bold;">
                                 <i class="fa-solid fa-image"></i> IMAGEN
                                </a>`;
                 }
@@ -425,7 +425,7 @@
         const pendingHtml = `
             <div id="msg-${tempId}" style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 10px; opacity: 0.7;">
                 <div style="background: #007bff; color: white; padding: 8px 12px; border-radius: 12px; max-width: 70%; word-wrap: break-word; border: 1px solid #dee2e6;">
-                    ${text}
+                    ${escapeHTML(text)}
                 </div>
                 <small style="color: #999; font-size: 0.75em; margin-top: 2px;">Enviando... - Administrador</small>
             </div>
