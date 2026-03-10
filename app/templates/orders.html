@@ -1,0 +1,800 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3>Órdenes</h3>
+        <button class="btn btn-table-action" onclick="openCreateOrderModal()">Nueva Orden</button>
+    </div>
+    <div class="filters">
+        <input type="text" id="table-search" class="search-input" placeholder="Buscar órdenes..."
+            onkeyup="filterTable('orders-table', this.value)">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table sortable" id="orders-table">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0, 'orders-table')">ID <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(1, 'orders-table')">Cliente <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(2, 'orders-table')">Total <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(3, 'orders-table')">Método Pago <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(4, 'orders-table')">Estado <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(5, 'orders-table')">Fecha <i class="fa-solid fa-sort"></i></th>
+                    <th style="text-align: center; vertical-align: middle;">Comprobante</th>
+                    <th>Acciones</th>
+                    <th onclick="sortTable(8, 'orders-table')">Dirección <i class="fa-solid fa-sort"></i></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div id="order-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Detalle de Orden #<span id="modal-order-id"></span></h3>
+                <button onclick="closeOrderModal()" class="modal-close">&times;</button>
+            </div>
+
+            <form id="order-form">
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <div style="flex: 1;">
+                        <div class="form-group">
+                            <label>Cliente</label>
+                            <div class="info-value" id="modal-customer-name"
+                                style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px;"></div>
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="form-group">
+                            <label>Teléfono (ID)</label>
+                            <div class="info-value" id="modal-customer-phone"
+                                style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Dirección de Entrega</label>
+                    <input type="text" id="modal-delivery-address" name="delivery_address"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+                </div>
+
+                <div class="form-group">
+                    <label>Estado</label>
+                    <select id="modal-status"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                        <option value="created">Creado</option>
+                        <option value="pending_payment">Pendiente Pago</option>
+                        <option value="paid">Pagado</option>
+                        <option value="completed">Completado</option>
+                        <option value="cancelled">Cancelado</option>
+                        <option value="refunded">Reembolsado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Método de Pago</label>
+                    <select id="modal-payment-method"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="Tarjeta">Tarjeta</option>
+                        <option value="Transferencia">Transferencia</option>
+                        <option value="Sinpe">Sinpe</option>
+                        <option value="Efectivo">Efectivo</option>
+                    </select>
+                </div>
+
+                <h4 style="margin-top: 20px; margin-bottom: 10px;">Productos</h4>
+                <!-- Edit Items Controls (Only shown for created/pending_payment) -->
+                <div id="modal-edit-items-container"
+                    style="display: none; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border: 1px solid var(--color-border); border-radius: 4px;">
+                    <div style="flex: 2; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Agregar Producto</label>
+                        <input list="modal-product-list" id="modal-add-product-input"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;"
+                            placeholder="Buscar producto...">
+                        <datalist id="modal-product-list"></datalist>
+                    </div>
+                    <div style="flex: 1; min-width: 80px;">
+                        <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Cantidad</label>
+                        <input type="number" id="modal-add-product-qty" value="1" min="1"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;">
+                    </div>
+                    <div style="flex: 0 0 auto;">
+                        <button type="button" class="btn btn-table-action"
+                            onclick="addItemToExistingOrder()">Agregar</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table" id="modal-items-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cant.</th>
+                                <th>Precio Unit.</th>
+                                <th>Subtotal</th>
+                                <th class="modal-item-action-col" style="display: none;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="text-align: right; font-weight: bold;">Total:</td>
+                                <td id="modal-total" style="font-weight: bold;"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="submit" class="btn btn-sm btn-secondary" id="btn-save-status">Guardar
+                        Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Modal -->
+<div id="receipt-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Comprobante de Pago</h3>
+            <button class="close-modal" onclick="closeReceiptModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align: center;">
+            <img id="receipt-modal-image" src="" alt="Comprobante"
+                style="max-width: 100%; max-height: 400px; object-fit: contain; border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 20px;">
+
+            <input type="hidden" id="receipt-modal-order-id">
+            <input type="hidden" id="receipt-modal-customer-phone">
+            <input type="hidden" id="receipt-modal-customer-name">
+
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button type="button" class="btn btn-table-action" onclick="confirmPaymentFromReceipt()"
+                    style="width: 100%;">Confirmar Pago</button>
+                <button type="button" class="btn" onclick="requestNewReceipt()"
+                    style="width: 100%; background-color: #25D366; color: white;">
+                    <i class="fa-brands fa-whatsapp"></i> Solicitar nuevo comprobante
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Order Modal -->
+<div id="create-order-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 900px; width: 95%;">
+        <div class="modal-header">
+            <h3>Nueva Orden</h3>
+            <button onclick="closeCreateOrderModal()" class="modal-close">&times;</button>
+        </div>
+
+        <form id="create-order-form">
+            <!-- Step 1: Customer -->
+            <div class="card"
+                style="padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--color-border); box-shadow: none;">
+                <h4 style="margin-bottom: 0.5rem; color: var(--color-primary);">1. Cliente y Entrega</h4>
+                <div class="form-group">
+                    <label>Buscar Cliente (Nombre o Teléfono)</label>
+                    <input type="text" list="customer-list" id="create-customer-input" class="search-input"
+                        style="width: 100%;" placeholder="Escriba para buscar..." autocomplete="off" required>
+                    <datalist id="customer-list">
+                        <!-- Populated by JS -->
+                    </datalist>
+                    <input type="hidden" id="create-customer-id">
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Dirección de Entrega</label>
+                    <input type="text" id="create-delivery-address"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);"
+                        placeholder="Ej: San José, del parque 100m norte...">
+                </div>
+            </div>
+
+            <!-- Step 2: Products -->
+            <div class="card"
+                style="padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--color-border); box-shadow: none;">
+                <h4 style="margin-bottom: 0.5rem; color: var(--color-primary);">2. Agregar Productos</h4>
+                <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                    <div style="flex: 2; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Producto</label>
+                        <input list="create-product-list" id="create-product-input"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;"
+                            placeholder="Buscar producto...">
+                        <datalist id="create-product-list"></datalist>
+                    </div>
+                    <div style="flex: 1; min-width: 80px;">
+                        <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Cantidad</label>
+                        <input type="number" id="create-product-qty" value="1" min="1"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;">
+                    </div>
+                    <div style="flex: 0 0 auto;">
+                        <button type="button" class="btn btn-table-action"
+                            onclick="addItemToNewOrder()">Agregar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="card"
+                style="padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--color-border); box-shadow: none;">
+                <h4 style="margin-bottom: 0.5rem; color: var(--color-primary);">3. Pago</h4>
+                <div class="form-group">
+                    <label>Método de Pago</label>
+                    <select id="create-payment-method"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="Tarjeta">Tarjeta</option>
+                        <option value="Transferencia">Transferencia</option>
+                        <option value="Sinpe">Sinpe</option>
+                        <option value="Efectivo">Efectivo</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Step 3: Items List -->
+            <div class="table-responsive"
+                style="max-height: 200px; overflow-y: auto; border: 1px solid var(--color-border); margin-bottom: 1rem;">
+                <table class="table" id="new-order-items-table">
+                    <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cant.</th>
+                            <th>Precio</th>
+                            <th>Subtotal</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="no-items-row">
+                            <td colspan="5" style="text-align: center; color: #666;">Sin productos agregados</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;">
+                Total Estimado: <span id="new-order-total">{{ settings.CURRENCY_SYMBOL }} 0</span>
+            </div>
+
+            <div style="margin-top: 20px; text-align: right; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn" style="background: #ccc;"
+                    onclick="closeCreateOrderModal()">Cancelar</button>
+                <button type="submit" class="btn btn-table-action">Crear Orden</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ... (Existing variables)
+    let availableProducts = [];
+    let availableCustomers = [];
+    let newOrderItems = [];
+
+    const statusMap = {
+        'created': 'Creado',
+        'pending_payment': 'Analisis de Pago',
+        'paid': 'Pagado',
+        'completed': 'Entregado',
+        'cancelled': 'Cancelado',
+        'refunded': 'Reembolsado'
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        loadOrders();
+        // Pre-fetch data for new order form
+        fetchFormData();
+    });
+
+    async function fetchFormData() {
+        const api = new ApiClient();
+        try {
+            // Fetch Customers
+            availableCustomers = await api.get('/customers/');
+            const dataList = document.getElementById('customer-list');
+            dataList.innerHTML = availableCustomers.map(c =>
+                `<option value="${c.phone} - ${c.full_name}" data-id="${c.id}"></option>`
+            ).join('');
+
+            // Products are now loaded by loadAllProducts()
+        } catch (e) {
+            console.error("Error loading form data", e);
+        }
+    }
+
+    // ... (Existing functions: loadOrders, openOrderModal, etc.)
+
+    // --- CREATE NEW ORDER LOGIC ---
+
+    // New Order Functions
+    function openCreateOrderModal() {
+        // Reset form
+        document.getElementById('create-order-form').reset();
+        document.getElementById('create-customer-id').value = '';
+        document.getElementById('create-delivery-address').value = '';
+        newOrderItems = [];
+        renderNewOrderItems();
+        document.getElementById('create-order-modal').style.display = 'flex';
+    }
+
+    function closeCreateOrderModal() {
+        document.getElementById('create-order-modal').style.display = 'none';
+    }
+
+    function addItemToNewOrder() {
+        const productInput = document.getElementById('create-product-input');
+        const qtyInput = document.getElementById('create-product-qty');
+
+        const productValue = productInput.value;
+        const qty = parseInt(qtyInput.value);
+
+        if (!productValue || qty < 1) {
+            showToast('Seleccione un producto y cantidad válida', 'error');
+            return;
+        }
+
+        // Find product ID from datalist
+        const dataList = document.getElementById('create-product-list');
+        const option = Array.from(dataList.options).find(opt => opt.value === productValue);
+
+        if (!option) {
+            showToast('Debe seleccionar un producto válido de la lista', 'error');
+            return;
+        }
+
+        const productId = parseInt(option.dataset.id);
+        const product = allProducts.find(p => p.id === productId);
+        if (!product) return;
+
+        if (qty > product.stock) {
+            showToast(`Solo hay ${product.stock} unidades en stock`, 'warning');
+            return;
+        }
+
+        const existingItem = newOrderItems.find(i => i.product_id === productId);
+        if (existingItem) {
+            if (existingItem.quantity + qty > product.stock) {
+                showToast(`Supera el stock disponible (${product.stock})`, 'error');
+                return;
+            }
+            existingItem.quantity += qty;
+        } else {
+            newOrderItems.push({
+                product_id: product.id,
+                name: product.name,
+                price: product.price,
+                stock: product.stock,
+                quantity: qty
+            });
+        }
+
+        renderNewOrderItems();
+        productInput.value = '';
+        qtyInput.value = '1';
+    }
+
+    function removeItemFromNewOrder(index) {
+        newOrderItems.splice(index, 1);
+        renderNewOrderItems();
+    }
+
+    function renderNewOrderItems() {
+        const tbody = document.querySelector('#new-order-items-table tbody');
+        const totalSpan = document.getElementById('new-order-total');
+
+        if (newOrderItems.length === 0) {
+            tbody.innerHTML = '<tr id="no-items-row"><td colspan="5" style="text-align: center; color: #666;">Sin productos agregados</td></tr>';
+            totalSpan.innerText = window.APP_CONFIG.currency + ' 0';
+            return;
+        }
+
+        let total = 0;
+        tbody.innerHTML = newOrderItems.map((item, index) => {
+            const subtotal = item.quantity * item.price;
+            total += subtotal;
+            return `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${window.APP_CONFIG.currency} ${item.price.toLocaleString()}</td>
+                        <td>${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
+                        <td><button type="button" class="btn btn-sm btn-danger" onclick="removeItemFromNewOrder(${index})">&times;</button></td>
+                    </tr>
+                `;
+        }).join('');
+
+        totalSpan.innerText = window.APP_CONFIG.currency + ' ' + total.toLocaleString();
+    }
+
+    // Handle Customer Input to set ID and default Payment Method
+    document.getElementById('create-customer-input').addEventListener('change', function () {
+        const val = this.value;
+        const list = document.getElementById('customer-list');
+        let foundId = '';
+        let foundCustomer = null;
+
+        for (let i = 0; i < list.options.length; i++) {
+            if (list.options[i].value === val) {
+                foundId = list.options[i].getAttribute('data-id');
+                // Find customer object
+                foundCustomer = availableCustomers.find(c => c.id == foundId);
+                break;
+            }
+        }
+        document.getElementById('create-customer-id').value = foundId;
+
+        // Auto-select Payment Method
+        if (foundCustomer && foundCustomer.default_payment_method) {
+            document.getElementById('create-payment-method').value = foundCustomer.default_payment_method;
+        }
+        if (foundCustomer && foundCustomer.address) {
+            document.getElementById('create-delivery-address').value = foundCustomer.address;
+        }
+    });
+
+    document.getElementById('create-order-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const customerId = document.getElementById('create-customer-id').value;
+        const paymentMethod = document.getElementById('create-payment-method').value;
+        const deliveryAddress = document.getElementById('create-delivery-address').value;
+
+        if (!customerId) {
+            showToast('Seleccione un cliente válido de la lista', 'error');
+            return;
+        }
+        if (newOrderItems.length === 0) {
+            showToast('Agregue al menos un producto', 'error');
+            return;
+        }
+
+        const api = new ApiClient();
+        try {
+            // 1. Create Order
+            const payload = {
+                customer_id: parseInt(customerId),
+                created_via: 'admin_panel',
+                payment_method: paymentMethod || null,
+                delivery_address: deliveryAddress || null,
+                items: newOrderItems.map(item => ({
+                    product_id: item.product_id,
+                    quantity: item.quantity
+                }))
+            };
+
+            const order = await api.post('/orders/', payload);
+
+            // 2. Confirm Order (Stock Deduction)
+            if (paymentMethod) {
+                // Since we provided a payment method, we might want to set status to pending_payment? 
+                // The confirm endpoint does that.
+                await api.post(`/orders/${order.id}/confirm`, {});
+            } else {
+                // If no payment method, maybe just leave as 'created' (Draft)?
+                // User request implied 'creating' orders. Let's confirm to deduct stock as in previous logic.
+                await api.post(`/orders/${order.id}/confirm`, {});
+            }
+
+            showToast('Orden creada exitosamente', 'success');
+            closeCreateOrderModal();
+            loadOrders(); // Refresh table
+        } catch (err) {
+            showToast('Error al crear orden: ' + (err.detail || err.message), 'error');
+        }
+    });
+
+    async function loadOrders() {
+        const api = new ApiClient();
+        try {
+            const orders = await api.get('/orders/');
+            const tbody = document.querySelector('#orders-table tbody');
+            tbody.innerHTML = orders.map(o => `
+                <tr>
+                    <td>#${o.id}</td>
+                    <td>${o.customer ? o.customer.full_name : 'N/A'}</td>
+                    <td>${window.APP_CONFIG.currency} ${parseFloat(o.total_amount).toLocaleString()}</td>
+                    <td>${o.payment_method || '-'}</td>
+                    <td><span class="badge ${o.status}">${statusMap[o.status] || o.status}</span></td>
+                    <td>${formatDateCR(o.created_at)}</td>
+                    <td style="text-align: center; vertical-align: middle;">${o.has_payment_receipt ? `<a href="#" onclick="event.preventDefault(); openReceiptModal(${o.id}, '${o.payment_receipt_url}', '${o.customer ? o.customer.phone : ''}', '${o.customer ? o.customer.full_name : ''}');" style="color:var(--color-primary); font-size: 1.2rem;" title="Ver Comprobante"><i class="fa-solid fa-file-invoice"></i></a>` : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-table-action" onclick="openOrderModal(${o.id})">Ver</button>
+                    </td>
+                    <td>${o.delivery_address || (o.customer && o.customer.address ? o.customer.address : '-')}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function openOrderModal(orderId) {
+        const api = new ApiClient();
+        try {
+            const order = await api.get(`/orders/${orderId}`);
+
+            // Populate Modal
+            document.getElementById('modal-order-id').innerText = order.id;
+            document.getElementById('modal-customer-name').innerText = order.customer ? order.customer.full_name : 'N/A';
+            document.getElementById('modal-customer-phone').innerText = order.customer ? (order.customer.phone || 'N/A') : 'N/A';
+            document.getElementById('modal-delivery-address').value = order.delivery_address || '';
+            document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + parseFloat(order.total_amount).toLocaleString();
+
+            // Status Select
+            const statusSelect = document.getElementById('modal-status');
+            statusSelect.innerHTML = Object.entries(statusMap).map(([key, label]) =>
+                `<option value="${key}">${label}</option>`
+            ).join('');
+            statusSelect.value = order.status;
+
+            // Payment Method Select
+            const paymentSelect = document.getElementById('modal-payment-method');
+            paymentSelect.value = order.payment_method || '';
+
+            // Map items for editing
+            currentOrderItems = order.items.map(i => ({
+                product_id: i.product_id,
+                product_name: i.product ? i.product.name : 'Unknown',
+                quantity: i.quantity,
+                unit_price: i.unit_price_at_moment,
+                subtotal: i.subtotal,
+                stock: i.product ? i.product.stock : 0 // Add stock for validation
+            }));
+
+            // Toggle Edit Controls based on Status
+            const editItemsContainer = document.getElementById('modal-edit-items-container');
+            const actionColHeader = document.querySelector('.modal-item-action-col');
+
+            if (order.status === 'created' || order.status === 'pending_payment') {
+                editItemsContainer.style.display = 'flex';
+                if (actionColHeader) actionColHeader.style.display = 'table-cell';
+            } else {
+                editItemsContainer.style.display = 'none';
+                if (actionColHeader) actionColHeader.style.display = 'none';
+            }
+
+            renderExistingOrderItems(order.status);
+
+            // Update footer total
+            document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + parseFloat(order.total_amount).toLocaleString();
+
+            // Store ID for update
+            document.getElementById('order-form').dataset.orderId = order.id;
+
+            document.getElementById('order-modal').style.display = 'flex';
+        } catch (e) {
+            showToast('Error al cargar orden', 'error');
+            console.error(e);
+        }
+    }
+
+    function renderExistingOrderItems(status) {
+        const tbody = document.querySelector('#modal-items-table tbody');
+        const showActions = status === 'created' || status === 'pending_payment';
+
+        let grandTotal = 0;
+
+        if (currentOrderItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${showActions ? 5 : 4}" style="text-align: center; color: #666;">Sin productos en la orden</td></tr>`;
+        } else {
+            tbody.innerHTML = currentOrderItems.map((item, index) => {
+                grandTotal += item.subtotal;
+                return `
+                <tr>
+                    <td>${item.product_name}</td>
+                    <td>
+                        ${showActions ?
+                        `<input type="number" value="${item.quantity}" min="1" max="${item.stock}" onchange="updateExistingItemQuantity(${index}, this.value)" 
+                                style="width: 60px; padding: 4px; border: 1px solid var(--color-border); border-radius: 4px;">`
+                        : item.quantity}
+                    </td>
+                    <td>${window.APP_CONFIG.currency} ${parseFloat(item.unit_price).toLocaleString()}</td>
+                    <td>${window.APP_CONFIG.currency} ${parseFloat(item.subtotal).toLocaleString()}</td>
+                    ${showActions ? `<td><button type="button" class="btn btn-sm btn-danger" onclick="removeItemFromExistingOrder(${index})"><i class="fa-solid fa-trash"></i></button></td>` : ''}
+                </tr>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + grandTotal.toLocaleString();
+    }
+
+    function updateExistingItemQuantity(index, newQty) {
+        const item = currentOrderItems[index];
+        const quantity = parseInt(newQty);
+
+        if (isNaN(quantity) || quantity < 1) {
+            showToast('Cantidad inválida', 'error');
+            // Revert to previous quantity or 1
+            renderExistingOrderItems(document.getElementById('modal-status').value);
+            return;
+        }
+
+        if (quantity > item.stock) {
+            showToast(`Solo hay ${item.stock} unidades en stock para ${item.product_name}`, 'warning');
+            // Revert to max stock
+            item.quantity = item.stock;
+        } else {
+            item.quantity = quantity;
+        }
+        item.subtotal = item.quantity * item.unit_price;
+        renderExistingOrderItems(document.getElementById('modal-status').value);
+    }
+
+    function addItemToExistingOrder() {
+        const productInput = document.getElementById('modal-add-product-input');
+        const qtyInput = document.getElementById('modal-add-product-qty');
+
+        const productValue = productInput.value;
+        const qty = parseInt(qtyInput.value);
+
+        if (!productValue || isNaN(qty) || qty <= 0) {
+            showToast('Seleccione un producto y cantidad válida', 'error');
+            return;
+        }
+
+        const dataList = document.getElementById('modal-product-list');
+        const option = Array.from(dataList.options).find(opt => opt.value === productValue);
+
+        if (!option) {
+            showToast('Debe seleccionar un producto válido de la lista', 'error');
+            return;
+        }
+
+        const productId = parseInt(option.dataset.id);
+        const productPrice = parseFloat(option.dataset.price);
+        const productName = option.value.split('] ')[1].split(' - ')[0]; // Extract name from "[SKU] Name - Price"
+        const productStock = parseInt(option.dataset.stock);
+
+        if (qty > productStock) {
+            showToast(`Solo hay ${productStock} unidades en stock`, 'warning');
+            return;
+        }
+
+        // Check if item exists
+        const existingItemIndex = currentOrderItems.findIndex(i => String(i.product_id) === String(productId));
+
+        if (existingItemIndex >= 0) {
+            if (currentOrderItems[existingItemIndex].quantity + qty > productStock) {
+                showToast(`Supera el stock disponible (${productStock})`, 'error');
+                return;
+            }
+            currentOrderItems[existingItemIndex].quantity += qty;
+            currentOrderItems[existingItemIndex].subtotal = currentOrderItems[existingItemIndex].quantity * productPrice;
+        } else {
+            currentOrderItems.push({
+                product_id: parseInt(productId),
+                product_name: productName,
+                quantity: qty,
+                unit_price: productPrice,
+                subtotal: qty * productPrice,
+                stock: productStock
+            });
+        }
+
+        const statusSelect = document.getElementById('modal-status');
+        renderExistingOrderItems(statusSelect.value);
+
+        productInput.value = "";
+        qtyInput.value = "1";
+    }
+
+    function removeItemFromExistingOrder(index) {
+        currentOrderItems.splice(index, 1);
+        const statusSelect = document.getElementById('modal-status');
+        renderExistingOrderItems(statusSelect.value);
+    }
+
+    function closeOrderModal() {
+        document.getElementById('order-modal').style.display = 'none';
+    }
+
+    document.getElementById('order-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const orderId = e.target.dataset.orderId;
+        const newStatus = document.getElementById('modal-status').value;
+        const newPaymentMethod = document.getElementById('modal-payment-method').value;
+        const newDeliveryAddress = document.getElementById('modal-delivery-address').value;
+
+        try {
+            const api = new ApiClient();
+
+            // Format items exclusively for API (product_id, quantity)
+            const submitItems = currentOrderItems.map(i => ({
+                product_id: i.product_id,
+                quantity: i.quantity
+            }));
+
+            const payload = {
+                status: newStatus,
+                payment_method: newPaymentMethod || null,
+                delivery_address: newDeliveryAddress || null
+            };
+
+            // Only attach items if status allows editing, else don't risk overwriting if payload is rejected
+            if (newStatus === 'created' || newStatus === 'pending_payment') {
+                payload.items = submitItems;
+            }
+
+            await api.put(`/orders/${orderId}`, payload);
+
+            showToast('Orden actualizada correctamente', 'success');
+            closeOrderModal();
+            loadOrders();
+        } catch (err) {
+            showToast('Error al actualizar: ' + err.message, 'error');
+        }
+    });
+
+    function openReceiptModal(orderId, receiptUrl, customerPhone, customerName) {
+        // Enforce the namespace prefix safely
+        const appRoot = window.APP_ROOT || '/';
+        const configRoot = window.APP_CONFIG ? window.APP_CONFIG.rootPath : '';
+        let finalUrl = receiptUrl || '';
+
+        // If the URL is absolute from root without the correct root prefix
+        if (finalUrl.startsWith('/api/') && configRoot && !finalUrl.startsWith(configRoot)) {
+            // It means configRoot is something like '/suplementos'
+            const cleanConfigRoot = configRoot.endsWith('/') ? configRoot.slice(0, -1) : configRoot;
+            finalUrl = cleanConfigRoot + finalUrl;
+        }
+
+        document.getElementById('receipt-modal-image').src = finalUrl;
+        document.getElementById('receipt-modal-order-id').value = orderId;
+        document.getElementById('receipt-modal-customer-phone').value = customerPhone || '';
+        document.getElementById('receipt-modal-customer-name').value = customerName || '';
+        document.getElementById('receipt-modal').style.display = 'flex';
+    }
+
+    function closeReceiptModal() {
+        document.getElementById('receipt-modal').style.display = 'none';
+        document.getElementById('receipt-modal-image').src = '';
+    }
+
+    async function confirmPaymentFromReceipt() {
+        const orderId = document.getElementById('receipt-modal-order-id').value;
+        try {
+            const api = new ApiClient();
+            await api.put(`/orders/${orderId}`, {
+                status: 'paid'
+            });
+            showToast(`Pago de la orden #${orderId} confirmado.`, 'success');
+            closeReceiptModal();
+            loadOrders();
+        } catch (err) {
+            showToast('Error al confirmar pago: ' + err.message, 'error');
+        }
+    }
+
+    function requestNewReceipt() {
+        const orderId = document.getElementById('receipt-modal-order-id').value;
+        const phoneRaw = document.getElementById('receipt-modal-customer-phone').value;
+        const name = document.getElementById('receipt-modal-customer-name').value;
+
+        if (!phoneRaw) {
+            showToast('No hay teléfono registrado para este cliente.', 'error');
+            return;
+        }
+
+        let phone = phoneRaw.replace(/\D/g, '');
+        const countryCode = (window.APP_CONFIG && window.APP_CONFIG.countryCode) ? window.APP_CONFIG.countryCode : '506';
+        if (phone.length <= 8) { // basic assumption for local vs intl
+            phone = countryCode + phone;
+        }
+
+        const message = `Hola ${name}, estamos verificando tu pago del pedido #${orderId} pero el comprobante que nos enviaste no corresponde, por favor nos puedes compartir el comprobante por este medio.`;
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+        closeReceiptModal();
+    }
+</script>
+{% endblock %}

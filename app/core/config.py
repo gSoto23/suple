@@ -1,0 +1,32 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "Suplementos Admin"
+    APP_ROOT_PATH: str = ""
+    CURRENCY_SYMBOL: str = "₡"
+    COUNTRY_PHONE_CODE: str = "506"
+    DEFAULT_TIMEZONE: str = "America/Costa_Rica"
+    COMPANY_ICON_CLASS: str = "fa-solid fa-dumbbell"
+    
+    API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str = "changethis"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
+    
+    DATABASE_URL: str = "sqlite+aiosqlite:///./suplementos.db"
+    
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:8000", "http://localhost:3000"]
+
+    # WhatsApp
+    WHATSAPP_ACCESS_TOKEN: str = ""
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_VERIFY_TOKEN: str = "suplementos_verify_123"
+    
+    # n8n
+    N8N_WEBHOOK_URL: str = ""
+    N8N_API_KEY: str = ""
+
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+
+settings = Settings()

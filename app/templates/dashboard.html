@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <div class="card kpi-card">
+        <h3>Ventas Hoy</h3>
+        <p class="value">{{ settings.CURRENCY_SYMBOL }} <span id="sales-today">0.00</span></p>
+    </div>
+    <div class="card kpi-card">
+        <h3>Cantidad de Órdenes</h3>
+        <p class="value"><span id="orders-count">0</span></p>
+    </div>
+    <div class="card kpi-card">
+        <h3>Ventas Mensuales</h3>
+        <p class="value">{{ settings.CURRENCY_SYMBOL }} <span id="monthly-sales">0.00</span></p>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Últimas Órdenes</h3>
+    </div>
+    <div class="filters">
+        <input type="text" id="dashboard-orders-search" class="search-input" placeholder="Buscar órdenes..."
+            onkeyup="filterTable('recent-orders', this.value)">
+    </div>
+    <div class="table-responsive">
+        <table class="table sortable" id="recent-orders">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0, 'recent-orders')">ID <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(1, 'recent-orders')">Cliente <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(2, 'recent-orders')">Total <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(3, 'recent-orders')">Estado <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(4, 'recent-orders')">Fecha <i class="fa-solid fa-sort"></i></th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div id="order-modal" class="modal-overlay" style="z-index: 1100; display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3>Detalle de Orden #<span id="modal-order-id"></span></h3>
+            <button onclick="closeOrderModal()" class="modal-close">&times;</button>
+        </div>
+
+        <form id="order-form">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                <div style="flex: 1;">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <div class="info-value" id="modal-customer-name"
+                            style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px;"></div>
+                    </div>
+                </div>
+                <div style="flex: 1;">
+                    <div class="form-group">
+                        <label>Teléfono (ID)</label>
+                        <div class="info-value" id="modal-customer-phone"
+                            style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Dirección de Entrega</label>
+                <input type="text" id="modal-delivery-address" name="delivery_address"
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+            </div>
+
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="modal-status"
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                    <option value="created">Creado</option>
+                    <option value="pending_payment">Pendiente Pago</option>
+                    <option value="paid">Pagado</option>
+                    <option value="completed">Completado</option>
+                    <option value="cancelled">Cancelado</option>
+                    <option value="refunded">Reembolsado</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Método de Pago</label>
+                <select id="modal-payment-method"
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                    <option value="">-- Seleccionar --</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Sinpe">Sinpe</option>
+                    <option value="Efectivo">Efectivo</option>
+                </select>
+            </div>
+
+            <h4 style="margin-top: 20px; margin-bottom: 10px;">Productos</h4>
+            <!-- Edit Items Controls (Only shown for created/pending_payment) -->
+            <div id="modal-edit-items-container"
+                style="display: none; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border: 1px solid var(--color-border); border-radius: 4px;">
+                <div style="flex: 2; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Agregar Producto</label>
+                    <input list="modal-product-list" id="modal-add-product-input"
+                        style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;"
+                        placeholder="Buscar producto...">
+                    <datalist id="modal-product-list"></datalist>
+                </div>
+                <div style="flex: 1; min-width: 80px;">
+                    <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Cantidad</label>
+                    <input type="number" id="modal-add-product-qty" value="1" min="1"
+                        style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;">
+                </div>
+                <div style="flex: 0 0 auto;">
+                    <button type="button" class="btn btn-table-action"
+                        onclick="addItemToExistingOrder()">Agregar</button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table" id="modal-items-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cant.</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                            <th class="modal-item-action-col" style="display: none;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" style="text-align: right; font-weight: bold;">Total:</td>
+                            <td id="modal-total" style="font-weight: bold;"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="submit" class="btn btn-sm btn-table-action" id="btn-save-status">Guardar
+                    Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentOrderItems = [];
+    let allProducts = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth(); // Defined in main.js
+        loadDashboard();
+        loadAllProducts();
+    });
+
+    async function loadAllProducts() {
+        try {
+            const api = new ApiClient();
+            const response = await api.get('/products/');
+            if (Array.isArray(response)) {
+                allProducts = response;
+            } else if (response.inventory) {
+                allProducts = response.inventory;
+            }
+
+            const options = allProducts.map(p => `<option value="[${p.sku}] ${p.name} - ${window.APP_CONFIG.currency}${p.price.toLocaleString()}" data-id="${p.id}" data-price="${p.price}" data-stock="${p.stock}"></option>`).join('');
+
+            const editList = document.getElementById('modal-product-list');
+            if (editList) editList.innerHTML = options;
+
+        } catch (e) {
+            console.error('Failed to load products', e);
+        }
+    }
+
+    const statusMap = {
+        'created': 'Creada',
+        'pending_payment': 'Analisis de Pago',
+        'paid': 'Pagado',
+        'shipped': 'Enviado',
+        'delivered': 'Entregado',
+        'cancelled': 'Cancelado'
+    };
+
+    async function loadDashboard() {
+        try {
+            const api = new ApiClient();
+
+            // Fetch a larger limit to calculate accurate monthly stats
+            const allOrders = await api.get('/orders/?limit=1000');
+            if (allOrders) {
+                const now = new Date();
+                const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+                // Get month's orders
+                const currentMonthOrders = allOrders.filter(o => o.created_at.startsWith(currentMonthStr));
+
+                // Update Cantidad de Órdenes
+                document.getElementById('orders-count').textContent = currentMonthOrders.length;
+
+                // Update Ventas Mensuales
+                const monthlySales = currentMonthOrders
+                    .filter(o => o.status !== 'cancelled')
+                    .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+                document.getElementById('monthly-sales').textContent = monthlySales.toLocaleString();
+
+                // Recent Orders list (take top 5 descending)
+                const recentOrders = allOrders.slice(0, 5);
+
+                const tbody = document.querySelector('#recent-orders tbody');
+                tbody.innerHTML = recentOrders.map(order => `
+                    <tr>
+                        <td>#${order.id}</td>
+                        <td>${order.customer ? order.customer.full_name : 'N/A'}</td>
+                        <td>${window.APP_CONFIG.currency} ${parseFloat(order.total_amount).toLocaleString()}</td>
+                        <td><span class="badge ${order.status}">${statusMap[order.status] || order.status}</span></td>
+                        <td>${formatDateCR(order.created_at)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-table-action" onclick="openOrderModal(${order.id})">Ver</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Sales Today
+                const todayCR = formatDateCR(now.toISOString());
+                const todaySales = allOrders
+                    .filter(o => formatDateCR(o.created_at) === todayCR && o.status !== 'cancelled')
+                    .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+                document.getElementById('sales-today').textContent = todaySales.toLocaleString();
+            }
+
+        } catch (e) {
+            console.error("Dashboard Load Error", e);
+        }
+    }
+
+    async function openOrderModal(orderId) {
+        const api = new ApiClient();
+        try {
+            const order = await api.get(`/orders/${orderId}`);
+
+            document.getElementById('modal-order-id').innerText = order.id;
+            document.getElementById('modal-customer-name').innerText = order.customer ? order.customer.full_name : 'N/A';
+            document.getElementById('modal-customer-phone').innerText = order.customer ? (order.customer.phone || 'N/A') : 'N/A';
+            document.getElementById('modal-delivery-address').value = order.delivery_address || '';
+            document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + parseFloat(order.total_amount).toLocaleString();
+
+            const statusSelect = document.getElementById('modal-status');
+            statusSelect.innerHTML = Object.entries(statusMap).map(([key, label]) =>
+                `<option value="${key}">${label}</option>`
+            ).join('');
+            statusSelect.value = order.status;
+
+            const paymentSelect = document.getElementById('modal-payment-method');
+            paymentSelect.value = order.payment_method || '';
+
+            // Map items for editing
+            currentOrderItems = order.items.map(i => ({
+                product_id: i.product_id,
+                product_name: i.product ? i.product.name : 'Unknown',
+                quantity: i.quantity,
+                unit_price: i.unit_price_at_moment,
+                subtotal: i.subtotal,
+                stock: i.product ? i.product.stock : 0 // Add stock for validation
+            }));
+
+            // Toggle Edit Controls based on Status
+            const editItemsContainer = document.getElementById('modal-edit-items-container');
+            const actionColHeader = document.querySelector('.modal-item-action-col');
+
+            if (order.status === 'created' || order.status === 'pending_payment') {
+                editItemsContainer.style.display = 'flex';
+                if (actionColHeader) actionColHeader.style.display = 'table-cell';
+            } else {
+                editItemsContainer.style.display = 'none';
+                if (actionColHeader) actionColHeader.style.display = 'none';
+            }
+
+            renderExistingOrderItems(order.status);
+
+            document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + parseFloat(order.total_amount).toLocaleString();
+            document.getElementById('order-form').dataset.orderId = order.id;
+            document.getElementById('order-modal').style.display = 'flex';
+        } catch (e) {
+            showToast('Error al cargar orden', 'error');
+            console.error(e);
+        }
+    }
+
+    function renderExistingOrderItems(status) {
+        const tbody = document.querySelector('#modal-items-table tbody');
+        const showActions = status === 'created' || status === 'pending_payment';
+
+        let grandTotal = 0;
+
+        if (currentOrderItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${showActions ? 5 : 4}" style="text-align: center; color: #666;">Sin productos en la orden</td></tr>`;
+        } else {
+            tbody.innerHTML = currentOrderItems.map((item, index) => {
+                grandTotal += item.subtotal;
+                return `
+                <tr>
+                    <td>${item.product_name}</td>
+                    <td>
+                        ${showActions ?
+                        `<input type="number" value="${item.quantity}" min="1" max="${item.stock}" onchange="updateExistingItemQuantity(${index}, this.value)" 
+                                style="width: 60px; padding: 4px; border: 1px solid var(--color-border); border-radius: 4px;">`
+                        : item.quantity}
+                    </td>
+                    <td>${window.APP_CONFIG.currency} ${parseFloat(item.unit_price).toLocaleString()}</td>
+                    <td>${window.APP_CONFIG.currency} ${parseFloat(item.subtotal).toLocaleString()}</td>
+                    ${showActions ? `<td><button type="button" class="btn btn-sm btn-danger" onclick="removeItemFromExistingOrder(${index})"><i class="fa-solid fa-trash"></i></button></td>` : ''}
+                </tr>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + grandTotal.toLocaleString();
+    }
+
+    function updateExistingItemQuantity(index, newQty) {
+        const item = currentOrderItems[index];
+        const quantity = parseInt(newQty);
+
+        if (isNaN(quantity) || quantity < 1) {
+            showToast('Cantidad inválida', 'error');
+            // Revert to previous quantity or 1
+            renderExistingOrderItems(document.getElementById('modal-status').value);
+            return;
+        }
+
+        if (quantity > item.stock) {
+            showToast(`Solo hay ${item.stock} unidades en stock para ${item.product_name}`, 'warning');
+            // Revert to max stock
+            item.quantity = item.stock;
+        } else {
+            item.quantity = quantity;
+        }
+        item.subtotal = item.quantity * item.unit_price;
+        renderExistingOrderItems(document.getElementById('modal-status').value);
+    }
+
+    function addItemToExistingOrder() {
+        const productInput = document.getElementById('modal-add-product-input');
+        const qtyInput = document.getElementById('modal-add-product-qty');
+
+        const productValue = productInput.value;
+        const qty = parseInt(qtyInput.value);
+
+        if (!productValue || isNaN(qty) || qty <= 0) {
+            showToast('Seleccione un producto y cantidad válida', 'error');
+            return;
+        }
+
+        const dataList = document.getElementById('modal-product-list');
+        const option = Array.from(dataList.options).find(opt => opt.value === productValue);
+
+        if (!option) {
+            showToast('Debe seleccionar un producto válido de la lista', 'error');
+            return;
+        }
+
+        const productId = parseInt(option.dataset.id);
+        const productPrice = parseFloat(option.dataset.price);
+        const productName = option.value.split('] ')[1].split(' - ')[0]; // Extract name from "[SKU] Name - Price"
+        const productStock = parseInt(option.dataset.stock);
+
+        if (qty > productStock) {
+            showToast(`Solo hay ${productStock} unidades en stock`, 'warning');
+            return;
+        }
+
+        // Check if item exists
+        const existingItemIndex = currentOrderItems.findIndex(i => String(i.product_id) === String(productId));
+
+        if (existingItemIndex >= 0) {
+            if (currentOrderItems[existingItemIndex].quantity + qty > productStock) {
+                showToast(`Supera el stock disponible (${productStock})`, 'error');
+                return;
+            }
+            currentOrderItems[existingItemIndex].quantity += qty;
+            currentOrderItems[existingItemIndex].subtotal = currentOrderItems[existingItemIndex].quantity * productPrice;
+        } else {
+            currentOrderItems.push({
+                product_id: parseInt(productId),
+                product_name: productName,
+                quantity: qty,
+                unit_price: productPrice,
+                subtotal: qty * productPrice,
+                stock: productStock
+            });
+        }
+
+        const statusSelect = document.getElementById('modal-status');
+        renderExistingOrderItems(statusSelect.value);
+
+        productInput.value = "";
+        qtyInput.value = "1";
+    }
+
+    function removeItemFromExistingOrder(index) {
+        currentOrderItems.splice(index, 1);
+        const statusSelect = document.getElementById('modal-status');
+        renderExistingOrderItems(statusSelect.value);
+    }
+
+    function closeOrderModal() {
+        document.getElementById('order-modal').style.display = 'none';
+    }
+
+    document.getElementById('order-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const orderId = e.target.dataset.orderId;
+        const newStatus = document.getElementById('modal-status').value;
+        const newPaymentMethod = document.getElementById('modal-payment-method').value;
+        const newDeliveryAddress = document.getElementById('modal-delivery-address').value;
+
+        try {
+            const api = new ApiClient();
+
+            // Format items exclusively for API (product_id, quantity)
+            const submitItems = currentOrderItems.map(i => ({
+                product_id: i.product_id,
+                quantity: i.quantity
+            }));
+
+            const payload = {
+                status: newStatus,
+                payment_method: newPaymentMethod || null,
+                delivery_address: newDeliveryAddress || null
+            };
+
+            // Only attach items if status allows editing, else don't risk overwriting if payload is rejected
+            if (newStatus === 'created' || newStatus === 'pending_payment') {
+                payload.items = submitItems;
+            }
+
+            await api.put(`/orders/${orderId}`, payload);
+
+            showToast('Orden actualizada correctamente', 'success');
+            closeOrderModal();
+            loadDashboard(); // Refresh Dashboard instead of loadOrders
+        } catch (err) {
+            showToast('Error al actualizar: ' + err.message, 'error');
+        }
+    });
+</script>
+
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .kpi-card h3 {
+        color: var(--color-text-light);
+        font-size: 0.9rem;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .kpi-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+        padding: var(--spacing-md);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border);
+    }
+</style>
+{% endblock %}

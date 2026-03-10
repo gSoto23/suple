@@ -1,0 +1,739 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3>Clientes</h3>
+        <button class="btn btn-table-action" onclick="openCreateCustomerModal()"><i class="fa-solid fa-plus"></i> Nuevo
+            Cliente</button>
+    </div>
+    <div class="filters">
+        <input type="text" id="table-search" class="search-input" placeholder="Buscar clientes..."
+            onkeyup="filterTable('customers-table', this.value)">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table sortable" id="customers-table">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0, 'customers-table')">Teléfono (ID) <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(1, 'customers-table')">Nombre <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(2, 'customers-table')">Suscripciones <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(3, 'customers-table')">Email <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(4, 'customers-table')">Dirección <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(5, 'customers-table')">Método Pago <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(6, 'customers-table')">Estado <i class="fa-solid fa-sort"></i></th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Customer Detail Modal -->
+    <div id="customer-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 900px; width: 95%;">
+            <div class="modal-header">
+                <h3 id="modal-title">Detalle del Cliente</h3>
+                <button onclick="closeCustomerModal()" class="modal-close">&times;</button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Top Section: Customer Info Form (Compact) -->
+                <form id="customer-form">
+                    <input type="hidden" name="id">
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 0px;">
+                        <!-- Row 1: Name | Email -->
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Nombre Completo</label>
+                                <input type="text" name="full_name" required>
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="email">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 0px;">
+                        <!-- Row 2: Phone | Status -->
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Teléfono (ID)</label>
+                                <input type="text" name="phone">
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Estado</label>
+                                <select name="is_active"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                                    <option value="true">Activo</option>
+                                    <option value="false">Inactivo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 0px;">
+                        <!-- Row 3: Age | Goal -->
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Edad</label>
+                                <input type="number" name="age" min="1">
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Objetivo Principal</label>
+                                <select name="goal"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                                    <option value="">-- Seleccionar --</option>
+                                    <option value="Perder Peso">Perder Peso</option>
+                                    <option value="Ganar Masa Muscular">Ganar Masa Muscular</option>
+                                    <option value="Mantenimiento">Mantenimiento</option>
+                                    <option value="Salud General">Salud General</option>
+                                    <option value="Rendimiento Deportivo">Rendimiento Deportivo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 0px;">
+                        <!-- Row 4: Training Days | Payment Method -->
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Días de Entrenamiento (Semana)</label>
+                                <input type="number" name="training_days" min="0" max="7">
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Método de Pago Predeterminado</label>
+                                <select name="default_payment_method"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                                    <option value="">-- Seleccionar --</option>
+                                    <option value="Tarjeta">Tarjeta</option>
+                                    <option value="Transferencia">Transferencia</option>
+                                    <option value="Sinpe">Sinpe</option>
+                                    <option value="Efectivo">Efectivo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <!-- Row 5: Notes | Medical Data -->
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea name="notes" rows="2"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);"></textarea>
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Datos Médicos / Alergias</label>
+                                <textarea name="medical_data" rows="2"
+                                    placeholder="Ej: Hipertensión, alergia a lactosa..."
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <div style="flex: 1; min-width: 250px;">
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <textarea name="address" rows="2"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="submit" class="btn btn-table-action">Guardar Cambios</button>
+                    </div>
+                </form>
+
+                <!-- Middle Section: Subscriptions -->
+                <div id="subscriptions-section"
+                    style="border-top: 1px solid var(--color-border); padding-top: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="color: var(--color-primary); margin: 0;">Suscripciones Activas</h4>
+                        <button type="button" class="btn btn-sm btn-table-action"
+                            onclick="openCreateSubscriptionModal()">+ Nueva Suscripción</button>
+                    </div>
+                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                        <table class="table" id="customer-subscriptions-table">
+                            <thead>
+                                <tr>
+                                    <th>Sub. ID</th>
+                                    <th>Producto</th>
+                                    <th>Estado</th>
+                                    <th>Próx. Cobro</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Bottom Section: Order History (Full Width) -->
+                <div id="order-history-section" style="border-top: 1px solid var(--color-border); padding-top: 20px;">
+                    <h4 style="margin-bottom: 10px; color: var(--color-primary);">Historial de Compras</h4>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table" id="customer-orders-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+
+<!-- Subscription Modal -->
+<div id="subscription-modal" class="modal-overlay" style="z-index: 1200;">
+    <div class="modal-content" style="max-width: 600px; padding: 2rem;">
+        <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+            <h3 style="color: var(--color-primary); font-size: 1.5rem; margin-bottom: 1rem;">Nueva Suscripción</h3>
+            <button onclick="closeSubscriptionModal()" class="modal-close"
+                style="top: 1.5rem; right: 1.5rem;">&times;</button>
+        </div>
+
+        <form id="subscription-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <input type="hidden" id="sub-customer-id">
+
+            <div class="form-group" style="margin: 0;">
+                <label style="font-weight: 500; font-size: 0.9rem; color: #555;">Producto (Suplemento)</label>
+                <select id="sub-product-id" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white; font-size: 1rem;">
+                    <option value="">-- Seleccionar Producto --</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-weight: 500; font-size: 0.9rem; color: #555;">Frecuencia (Días)</label>
+                    <input type="number" id="sub-frequency" value="30" required
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 1rem;">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-weight: 500; font-size: 0.9rem; color: #555;">Cantidad</label>
+                    <input type="number" id="sub-quantity" value="1" required min="1"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 1rem;">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-weight: 500; font-size: 0.9rem; color: #555;">Descuento (%)</label>
+                    <input type="number" step="0.01" id="sub-discount" value="0" required
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: #f9f9f9; font-size: 1rem;">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-weight: 500; font-size: 0.9rem; color: #555;">Duración Mínima (Días)</label>
+                    <input type="number" id="sub-min-duration" value="0" required
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: #f9f9f9; font-size: 1rem;">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label style="font-weight: 500; font-size: 0.9rem; color: #555;">Próxima Fecha de Cobro/Envío</label>
+                <input type="date" id="sub-next-date" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 1rem;">
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label style="font-weight: 500; font-size: 0.9rem; color: #555;">Notas Adicionales</label>
+                <input type="text" id="sub-notes"
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 1rem;"
+                    placeholder="(Opcional)">
+            </div>
+
+            <div class="modal-actions"
+                style="margin-top: 1rem; border-top: none; justify-content: flex-end; gap: 1rem;">
+                <button type="button" class="btn" onclick="closeSubscriptionModal()"
+                    style="background-color: #e0e0e0; color: #333; font-weight: bold; border-radius: var(--radius-sm); padding: 0.75rem 1.5rem;">Cancelar</button>
+                <button type="submit" class="btn btn-table-action"
+                    style="font-weight: bold; border-radius: var(--radius-sm); padding: 0.75rem 1.5rem; background-color: var(--color-primary);">Crear
+                    Suscripción</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Order Detail Modal (Duplicate from orders.html) -->
+<div id="order-modal" class="modal-overlay" style="z-index: 1100;">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3>Detalle de Orden #<span id="modal-order-id"></span></h3>
+            <button onclick="closeOrderModal()" class="modal-close">&times;</button>
+        </div>
+
+        <form id="order-form">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                <div style="flex: 1;">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <div class="info-value" id="modal-customer-name"
+                            style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px;"></div>
+                    </div>
+                </div>
+                <div style="flex: 1;">
+                    <div class="form-group">
+                        <label>Teléfono (ID)</label>
+                        <div class="info-value" id="modal-customer-phone"
+                            style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="modal-status" disabled
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: #eee;">
+                    <!-- Options populated via JS -->
+                </select>
+            </div>
+
+            <h4 style="margin-top: 20px; margin-bottom: 10px;">Productos</h4>
+            <div class="table-responsive">
+                <table class="table" id="modal-items-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cant.</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" style="text-align: right; font-weight: bold;">Total:</td>
+                            <td id="modal-total" style="font-weight: bold;"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let isCreating = false;
+
+    const statusMap = {
+        'created': 'Creado',
+        'pending_payment': 'Pendiente de Pago',
+        'paid': 'Pagado',
+        'completed': 'Entregado',
+        'cancelled': 'Cancelado',
+        'refunded': 'Reembolsado'
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        await loadProductsAndConfig();
+        loadCustomers();
+    });
+
+    let globalProducts = [];
+    let globalConfig = null;
+
+    async function loadProductsAndConfig() {
+        const api = new ApiClient();
+        try {
+            const res = await api.get('/products/');
+            globalProducts = res.inventory || [];
+            globalConfig = res.config || {};
+
+            const select = document.getElementById('sub-product-id');
+            select.innerHTML = '<option value="">-- Seleccionar --</option>' + globalProducts.map(p =>
+                `<option value="${p.id}">${p.name} - ${window.APP_CONFIG.currency}${parseFloat(p.price).toLocaleString()}</option>`
+            ).join('');
+        } catch (e) {
+            console.error("Error loading products", e);
+        }
+    }
+
+    // ... (loadCustomers)
+
+    async function loadCustomers() {
+        const api = new ApiClient();
+        try {
+            const customers = await api.get('/customers/');
+            const tbody = document.querySelector('#customers-table tbody');
+            tbody.innerHTML = customers.map(c => `
+                <tr>
+                    <td><strong>${c.phone || '-'}</strong></td>
+                    <td>${c.full_name}</td>
+                    <td>
+                        ${c.subscriptions && c.subscriptions.length > 0
+                    ? c.subscriptions.map(s => `<span class="badge" style="background:var(--color-primary); color:white; margin-right:4px;">Sub #${s.id}</span>`).join('')
+                    : '<span style="color: #999;">-</span>'
+                }
+                    </td>
+                    <td>${c.email || '-'}</td>
+                    <td>${c.address || '-'}</td>
+                    <td>${c.default_payment_method || '-'}</td>
+                    <td><span class="badge ${c.is_active ? 'active' : 'inactive'}">${c.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-table-action" onclick="openCustomerModal('${c.phone}')">Ver</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${c.phone}', '${c.full_name}')" style="margin-left: 5px;"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function closeCustomerModal() {
+        document.getElementById('customer-modal').style.display = 'none';
+    }
+
+    function openCreateCustomerModal() {
+        isCreating = true;
+        document.getElementById('modal-title').innerText = 'Nuevo Cliente';
+        document.getElementById('customer-form').reset();
+        document.querySelector('[name="id"]').value = ''; // Still uses internal ID for update? Form uses ID? update logic needs checking.
+        // Actually update also uses phone in API: PUT /customers/{phone}
+        // But the form has input name="id".
+        // Let's keep it consistent.
+
+        document.getElementById('order-history-section').style.display = 'none'; // Hide history
+        document.querySelector('#customer-modal .modal-content').style.maxWidth = '600px'; // Medium width
+
+        // Set defaults
+        const form = document.getElementById('customer-form');
+        form.is_active.value = 'true';
+
+        document.getElementById('customer-modal').style.display = 'flex';
+    }
+
+    async function openCustomerModal(phone) {
+        if (!phone) {
+            showToast('Error: Cliente sin teléfono', 'error');
+            return;
+        }
+        isCreating = false;
+        document.getElementById('modal-title').innerText = 'Detalle del Cliente';
+        document.getElementById('order-history-section').style.display = 'block'; // Show history
+        document.querySelector('#customer-modal .modal-content').style.maxWidth = '900px'; // Wide width
+
+        const api = new ApiClient();
+        try {
+            // Fetch Customer Details
+            const customer = await api.get(`/customers/${phone}`);
+
+            // Fill Form
+            const form = document.getElementById('customer-form');
+            form.elements['id'].value = customer.id || ''; // Use specific element lookup
+            form.full_name.value = customer.full_name;
+            form.phone.value = customer.phone || '';
+            form.email.value = customer.email || '';
+            form.address.value = customer.address || '';
+            form.is_active.value = (customer.is_active !== undefined ? customer.is_active : true).toString();
+            form.default_payment_method.value = customer.default_payment_method || '';
+            form.notes.value = customer.notes || '';
+
+            form.age.value = customer.age || '';
+            form.goal.value = customer.goal || '';
+            form.training_days.value = customer.training_days || '';
+            form.medical_data.value = customer.medical_data || '';
+
+            // Store current customer Phone just in case
+            document.getElementById('customer-modal').dataset.customerPhone = customer.phone;
+
+            // Load Subscriptions in Modal Table
+            renderCustomerSubscriptions(customer.subscriptions || []);
+
+            // Fetch Order History
+            loadCustomerOrders(customer.phone);
+
+            document.getElementById('customer-modal').style.display = 'flex';
+        } catch (e) {
+            showToast('Error al cargar cliente', 'error');
+            console.error(e);
+        }
+    }
+
+    function renderCustomerSubscriptions(subs) {
+        const tbody = document.querySelector('#customer-subscriptions-table tbody');
+        if (!subs || subs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No tiene suscripciones activas</td></tr>';
+            return;
+        }
+        tbody.innerHTML = subs.map(s => {
+            const p = globalProducts.find(prod => prod.id === s.product_id);
+            const pName = p ? p.name : `P${s.product_id}`;
+            const discHtml = s.applied_discount > 0 ? `<br><small style="color:red">-${parseFloat(s.applied_discount).toLocaleString()}%</small>` : '';
+            return `
+            <tr>
+                <td>#${s.id}</td>
+                <td>${pName}</td>
+                <td><span class="badge ${s.status}">${statusMap[s.status] || s.status}</span>${discHtml}</td>
+                <td>${s.next_billing_date ? formatDateCR(s.next_billing_date) : '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSubscription(${s.id})" title="Cancelar Suscripción"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadCustomerOrders(phone) {
+        const api = new ApiClient();
+        const tbody = document.querySelector('#customer-orders-table tbody');
+        tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+
+        try {
+            const orders = await api.get(`/customers/${phone}/orders`);
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">No hay ordenes registradas.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = orders.map(o => `
+                    <tr>
+                        <td>#${o.id}</td>
+                        <td>${formatDateCR(o.created_at)}</td>
+                        <td>${window.APP_CONFIG.currency} ${parseFloat(o.total_amount).toLocaleString()}</td>
+                        <td><span class="badge ${o.status}">${statusMap[o.status] || o.status}</span></td>
+                        <td>
+                             <button class="btn btn-sm btn-table-action" onclick="openOrderModal(${o.id})">Ver</button>
+                        </td>
+                    </tr>
+                `).join('');
+        } catch (e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="5">Error al cargar ordenes.</td></tr>';
+        }
+    }
+
+    async function openOrderModal(orderId) {
+        const api = new ApiClient();
+        try {
+            const order = await api.get(`/orders/${orderId}`);
+
+            // Populate Modal
+            document.getElementById('modal-order-id').innerText = order.id;
+            document.getElementById('modal-customer-name').innerText = order.customer ? order.customer.full_name : 'N/A';
+            document.getElementById('modal-customer-phone').innerText = order.customer ? (order.customer.phone || 'N/A') : 'N/A';
+            document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + parseFloat(order.total_amount).toLocaleString();
+
+            // Status Select
+            const statusSelect = document.getElementById('modal-status');
+            statusSelect.innerHTML = Object.entries(statusMap).map(([key, label]) =>
+                `<option value="${key}">${label}</option>`
+            ).join('');
+            statusSelect.value = order.status;
+
+            // Populate Items
+            const tbody = document.querySelector('#modal-items-table tbody');
+            tbody.innerHTML = order.items.map(item => `
+                    <tr>
+                        <td>${item.product ? item.product.name : 'Unknown'}</td>
+                        <td>${item.quantity}</td>
+                        <td>${window.APP_CONFIG.currency} ${parseFloat(item.unit_price_at_moment).toLocaleString()}</td>
+                        <td>${window.APP_CONFIG.currency} ${parseFloat(item.subtotal).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+
+            // Update footer total
+            document.getElementById('modal-total').innerText = window.APP_CONFIG.currency + ' ' + parseFloat(order.total_amount).toLocaleString();
+
+            document.getElementById('order-modal').style.zIndex = '1100';
+            document.getElementById('order-modal').style.display = 'flex';
+        } catch (e) {
+            showToast('Error al cargar orden', 'error');
+            console.error(e);
+        }
+    }
+
+    function closeOrderModal() {
+        document.getElementById('order-modal').style.display = 'none';
+    }
+
+    // ----------------------------------------------------
+    // End Pet logic removed
+    // ----------------------------------------------------
+
+    // --- Subscriptions Logic ---
+    function openCreateSubscriptionModal() {
+        // Fix: fetch ID correctly from the hidden input, not the form object
+        const customerId = document.querySelector('#customer-form [name="id"]').value;
+        if (!customerId) {
+            showToast('El cliente debe guardarse antes de añadir suscripciones', 'error');
+            return;
+        }
+
+        document.getElementById('subscription-form').reset();
+        document.getElementById('sub-customer-id').value = customerId;
+
+        // Default next billing date to today + 30
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + 30);
+        document.getElementById('sub-next-date').value = defaultDate.toISOString().split('T')[0];
+
+        // Use Global Config attributes
+        if (globalConfig) {
+            document.getElementById('sub-discount').value = parseFloat(globalConfig.subscription_discount_percentage || 0);
+            document.getElementById('sub-min-duration').value = parseInt(globalConfig.min_subscription_duration_days || 0);
+        } else {
+            document.getElementById('sub-discount').value = 0;
+            document.getElementById('sub-min-duration').value = 0;
+        }
+
+        document.getElementById('subscription-modal').style.display = 'flex';
+    }
+
+    function closeSubscriptionModal() {
+        document.getElementById('subscription-modal').style.display = 'none';
+    }
+
+    document.getElementById('subscription-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const data = {
+            customer_id: parseInt(document.getElementById('sub-customer-id').value),
+            product_id: parseInt(document.getElementById('sub-product-id').value),
+            frequency_days: parseInt(document.getElementById('sub-frequency').value),
+            quantity: parseInt(document.getElementById('sub-quantity').value),
+            status: "active",
+            next_billing_date: new Date(document.getElementById('sub-next-date').value).toISOString(),
+            applied_discount: parseFloat(document.getElementById('sub-discount').value) || 0.0,
+            min_duration_days: parseInt(document.getElementById('sub-min-duration').value) || 0,
+            notes: document.getElementById('sub-notes').value || null
+        };
+
+        const api = new ApiClient();
+        try {
+            await api.post('/subscriptions/', data);
+            showToast('Suscripción creada correctamente', 'success');
+            closeSubscriptionModal();
+
+            // Reload Customer
+            const currentPhone = document.getElementById('customer-modal').dataset.customerPhone;
+            openCustomerModal(currentPhone);
+        } catch (err) {
+            showToast('Error al crear suscripción: ' + (err.detail || err.message), 'error');
+        }
+    });
+
+    async function deleteSubscription(subId) {
+        showConfirm(
+            'Cancelar Suscripción',
+            `¿Estás seguro de que deseas eliminar la suscripción #${subId}?`,
+            async () => {
+                const api = new ApiClient();
+                try {
+                    await api.delete(`/subscriptions/${subId}`);
+                    showToast('Suscripción eliminada', 'success');
+
+                    const currentPhone = document.getElementById('customer-modal').dataset.customerPhone;
+                    openCustomerModal(currentPhone);
+                } catch (e) {
+                    showToast('Error al eliminar: ' + (e.detail || e.message), 'error');
+                }
+            }
+        );
+    }
+    // ---------------------------
+
+    document.getElementById('customer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        // Convert 'true'/'false' string back to boolean for JSON
+        data.is_active = data.is_active === 'true';
+
+        try {
+            const api = new ApiClient();
+            if (isCreating) {
+                delete data.id; // No ID for create
+                await api.post('/customers/', data);
+                showToast('Cliente creado correctamente', 'success');
+            } else {
+                // UPDATE: PUT /customers/{phone}
+                const phone = data.phone;
+                // We should use the original phone if it was changed? 
+                // USUALLY update endpoint uses ID or original key.
+                // If user changes phone, we effectively need the OLD phone to find it, OR update by ID?
+                // API: PUT /customers/{phone} -> updates based on URL phone.
+                // If user changed phone in form, data.phone is NEW phone.
+                // We need OLD phone.
+                // But wait, the API probably updates the record found by URL phone.
+                // If we use data.phone (new phone), and it doesn't exist yet, we can't find record to update.
+                // We need the ID or the original Phone.
+                // But the API is keyed by phone.
+                // If we change phone, we probably need to handle it carefully.
+                // For now, let's assume we use the phone from form. 
+                // If user edits phone, this might fail or create new?
+                // Actually my `update_customer` uses `phone` in URL to find.
+                // So we MUST use the phone that currently exists. 
+                // If user edited the input, `data.phone` is new.
+                // We should use `dataset.customerPhone` (original) for the URL.
+
+                // Let's rely on dataset if available, or fetch from form if creating.
+                // But if creating, isCreating is true.
+
+                // For Update:
+                const originalPhone = document.getElementById('customer-modal').dataset.customerPhone;
+                // Use originalPhone for URL, and payload contains new phone.
+                // The backend handles phone update check.
+
+                delete data.id;
+                await api.put(`/customers/${originalPhone}`, data);
+                showToast('Cliente actualizado correctamente', 'success');
+
+                // If phone changed, the next modal open needs new phone.
+                // But we close modal anyway.
+            }
+            closeCustomerModal();
+            loadCustomers();
+        } catch (e) {
+            showToast('Error: ' + (e.detail || e.message), 'error');
+        }
+    });
+
+    async function deleteCustomer(phone, name) {
+        showConfirm(
+            'Eliminar Cliente',
+            `¿Estás seguro de que deseas eliminar al cliente "${name}"? Esta acción no se puede deshacer.`,
+            async () => {
+                const api = new ApiClient();
+                try {
+                    await api.delete(`/customers/${phone}`);
+                    showToast('Cliente eliminado correctamente', 'success');
+                    loadCustomers();
+                } catch (e) {
+                    showToast('Error al eliminar: ' + (e.detail || e.message), 'error');
+                }
+            }
+        );
+    }
+</script>
+{% endblock %}
