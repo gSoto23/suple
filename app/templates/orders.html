@@ -326,7 +326,8 @@
             ).join('');
 
             // Products
-            allProducts = await api.get('/products/');
+            const productResponse = await api.get('/products/');
+            allProducts = productResponse.inventory || productResponse;
             const createProductList = document.getElementById('create-product-list');
             createProductList.innerHTML = allProducts.map(p =>
                 `<option value="[${escapeHTML(p.sku)}] ${escapeHTML(p.name)} - ${window.APP_CONFIG.currency}${p.price}" data-id="${p.id}" data-price="${p.price}" data-stock="${p.stock}"></option>`
