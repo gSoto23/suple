@@ -177,97 +177,116 @@
         </div>
 
         <form id="create-order-form">
-            <!-- Step 1: Customer -->
-            <div class="card"
-                style="padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--color-border); box-shadow: none;">
-                <h4 style="margin-bottom: 0.5rem; color: var(--color-primary);">1. Cliente y Entrega</h4>
-                <div class="form-group">
-                    <label>Buscar Cliente (Nombre o Teléfono)</label>
-                    <input type="text" list="customer-list" id="create-customer-input" class="search-input"
-                        style="width: 100%;" placeholder="Escriba para buscar..." autocomplete="off" required>
-                    <datalist id="customer-list">
-                        <!-- Populated by JS -->
-                    </datalist>
-                    <input type="hidden" id="create-customer-id">
-                </div>
-                <div class="form-group" style="margin-top: 10px;">
-                    <label>Dirección de Entrega</label>
-                    <input type="text" id="create-delivery-address"
-                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);"
-                        placeholder="Ej: San José, del parque 100m norte...">
-                </div>
-            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
 
-            <!-- Step 2: Products -->
-            <div class="card"
-                style="padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--color-border); box-shadow: none;">
-                <h4 style="margin-bottom: 0.5rem; color: var(--color-primary);">2. Agregar Productos</h4>
-                <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
-                    <div style="flex: 2; min-width: 200px;">
-                        <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Producto</label>
-                        <input list="create-product-list" id="create-product-input"
-                            style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;"
-                            placeholder="Buscar producto...">
-                        <datalist id="create-product-list"></datalist>
+                <!-- Left Column: Customer & Payment -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Step 1: Customer -->
+                    <div class="card"
+                        style="padding: 1.5rem; border: 1px solid var(--color-border); box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin: 0;">
+                        <h4 style="margin-bottom: 1rem; color: var(--color-primary); font-weight: 600;"><i
+                                class="fa-solid fa-user"></i> Datos del Cliente</h4>
+                        <div class="form-group">
+                            <label>Buscar Cliente (Nombre o Teléfono)</label>
+                            <input type="text" list="customer-list" id="create-customer-input" class="search-input"
+                                style="width: 100%;" placeholder="Escriba para buscar..." autocomplete="off" required>
+                            <datalist id="customer-list">
+                                <!-- Populated by JS -->
+                            </datalist>
+                            <input type="hidden" id="create-customer-id">
+                        </div>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label>Dirección de Entrega</label>
+                            <input type="text" id="create-delivery-address"
+                                style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);"
+                                placeholder="Ej: San José, del parque 100m norte...">
+                        </div>
                     </div>
-                    <div style="flex: 1; min-width: 80px;">
-                        <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">Cantidad</label>
-                        <input type="number" id="create-product-qty" value="1" min="1"
-                            style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;">
-                    </div>
-                    <div style="flex: 0 0 auto;">
-                        <button type="button" class="btn btn-table-action"
-                            onclick="addItemToNewOrder()">Agregar</button>
+
+                    <!-- Step 2: Payment Method -->
+                    <div class="card"
+                        style="padding: 1.5rem; border: 1px solid var(--color-border); box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin: 0;">
+                        <h4 style="margin-bottom: 1rem; color: var(--color-primary); font-weight: 600;"><i
+                                class="fa-solid fa-wallet"></i> Detalles de Pago</h4>
+                        <div class="form-group">
+                            <label>Método de Pago</label>
+                            <select id="create-payment-method"
+                                style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                                <option value="">-- Seleccionar --</option>
+                                <option value="Tarjeta">Tarjeta</option>
+                                <option value="Transferencia">Transferencia</option>
+                                <option value="Sinpe">Sinpe</option>
+                                <option value="Efectivo">Efectivo</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Payment Method -->
-            <div class="card"
-                style="padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--color-border); box-shadow: none;">
-                <h4 style="margin-bottom: 0.5rem; color: var(--color-primary);">3. Pago</h4>
-                <div class="form-group">
-                    <label>Método de Pago</label>
-                    <select id="create-payment-method"
-                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
-                        <option value="">-- Seleccionar --</option>
-                        <option value="Tarjeta">Tarjeta</option>
-                        <option value="Transferencia">Transferencia</option>
-                        <option value="Sinpe">Sinpe</option>
-                        <option value="Efectivo">Efectivo</option>
-                    </select>
+                <!-- Right Column: Products & Totals -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Step 3: Products -->
+                    <div class="card"
+                        style="padding: 1.5rem; border: 1px solid var(--color-border); box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin: 0; flex: 1; display: flex; flex-direction: column;">
+                        <h4 style="margin-bottom: 1rem; color: var(--color-primary); font-weight: 600;"><i
+                                class="fa-solid fa-cart-plus"></i> Productos</h4>
+
+                        <div
+                            style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <div style="flex: 2; min-width: 150px;">
+                                <label
+                                    style="display: block; margin-bottom: 4px; font-size: 0.85rem; font-weight: bold; color: #555;">Catálogo</label>
+                                <input list="create-product-list" id="create-product-input"
+                                    style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;"
+                                    placeholder="Buscar...">
+                                <datalist id="create-product-list"></datalist>
+                            </div>
+                            <div style="flex: 0 0 80px;">
+                                <label
+                                    style="display: block; margin-bottom: 4px; font-size: 0.85rem; font-weight: bold; color: #555;">Cant.</label>
+                                <input type="number" id="create-product-qty" value="1" min="1"
+                                    style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; text-align: center;">
+                            </div>
+                            <div style="flex: 0 0 auto;">
+                                <button type="button" class="btn btn-table-action" onclick="addItemToNewOrder()"><i
+                                        class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Items List -->
+                        <div class="table-responsive"
+                            style="flex: 1; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; min-height: 150px;">
+                            <table class="table" id="new-order-items-table" style="margin: 0;">
+                                <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th style="text-align: center;">Cant.</th>
+                                        <th style="text-align: right;">Precio</th>
+                                        <th style="visibility: hidden;">Ac</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="no-items-row">
+                                        <td colspan="4" style="text-align: center; color: #999; padding: 2rem;">Sin
+                                            productos en la orden</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div
+                            style="text-align: right; font-size: 1.4rem; font-weight: bold; margin-top: 1.5rem; padding-top: 1rem; border-top: 2px dashed #eee; color: var(--color-primary);">
+                            Total: <span id="new-order-total">{{ settings.CURRENCY_SYMBOL }} 0</span>
+                        </div>
+                    </div>
                 </div>
+
             </div>
 
-            <!-- Step 3: Items List -->
-            <div class="table-responsive"
-                style="max-height: 200px; overflow-y: auto; border: 1px solid var(--color-border); margin-bottom: 1rem;">
-                <table class="table" id="new-order-items-table">
-                    <thead style="position: sticky; top: 0; background: white; z-index: 1;">
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cant.</th>
-                            <th>Precio</th>
-                            <th>Subtotal</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr id="no-items-row">
-                            <td colspan="5" style="text-align: center; color: #666;">Sin productos agregados</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;">
-                Total Estimado: <span id="new-order-total">{{ settings.CURRENCY_SYMBOL }} 0</span>
-            </div>
-
-            <div style="margin-top: 20px; text-align: right; display: flex; justify-content: flex-end; gap: 10px;">
-                <button type="button" class="btn" style="background: #ccc;"
-                    onclick="closeCreateOrderModal()">Cancelar</button>
-                <button type="submit" class="btn btn-table-action">Crear Orden</button>
+            <div
+                style="margin-top: 25px; text-align: right; display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid #eee; padding-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateOrderModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="padding-left: 30px; padding-right: 30px;"><i
+                        class="fa-solid fa-check"></i> Crear Orden</button>
             </div>
         </form>
     </div>
@@ -276,6 +295,7 @@
 <script>
     // ... (Existing variables)
     let availableProducts = [];
+    let allProducts = [];
     let availableCustomers = [];
     let newOrderItems = [];
 
@@ -305,7 +325,15 @@
                 `<option value="${escapeHTML(c.phone)} - ${escapeHTML(c.full_name)}" data-id="${c.id}"></option>`
             ).join('');
 
-            // Products are now loaded by loadAllProducts()
+            // Products
+            allProducts = await api.get('/products/');
+            const createProductList = document.getElementById('create-product-list');
+            createProductList.innerHTML = allProducts.map(p =>
+                `<option value="[${escapeHTML(p.sku)}] ${escapeHTML(p.name)} - ${window.APP_CONFIG.currency}${p.price}" data-id="${p.id}" data-price="${p.price}" data-stock="${p.stock}"></option>`
+            ).join('');
+
+            const modalProductList = document.getElementById('modal-product-list');
+            modalProductList.innerHTML = createProductList.innerHTML;
         } catch (e) {
             console.error("Error loading form data", e);
         }
@@ -392,7 +420,7 @@
         const totalSpan = document.getElementById('new-order-total');
 
         if (newOrderItems.length === 0) {
-            tbody.innerHTML = '<tr id="no-items-row"><td colspan="5" style="text-align: center; color: #666;">Sin productos agregados</td></tr>';
+            tbody.innerHTML = '<tr id="no-items-row"><td colspan="4" style="text-align: center; color: #999; padding: 2rem;">Sin productos en la orden</td></tr>';
             totalSpan.innerText = window.APP_CONFIG.currency + ' 0';
             return;
         }
@@ -403,11 +431,10 @@
             total += subtotal;
             return `
                     <tr>
-                        <td>${escapeHTML(item.name)}</td>
-                        <td>${item.quantity}</td>
-                        <td>${window.APP_CONFIG.currency} ${item.price.toLocaleString()}</td>
-                        <td>${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
-                        <td><button type="button" class="btn btn-sm btn-danger" onclick="removeItemFromNewOrder(${index})">&times;</button></td>
+                        <td style="font-weight: 500;">${escapeHTML(item.name)}</td>
+                        <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
+                        <td style="text-align: right;">${window.APP_CONFIG.currency} ${subtotal.toLocaleString()}</td>
+                        <td style="text-align: right;"><button type="button" class="btn btn-sm btn-danger" style="padding: 4px 8px;" onclick="removeItemFromNewOrder(${index})"><i class="fa-solid fa-trash"></i></button></td>
                     </tr>
                 `;
         }).join('');
