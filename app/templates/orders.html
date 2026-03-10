@@ -506,17 +506,6 @@
 
             const order = await api.post('/orders/', payload);
 
-            // 2. Confirm Order (Stock Deduction)
-            if (paymentMethod) {
-                // Since we provided a payment method, we might want to set status to pending_payment? 
-                // The confirm endpoint does that.
-                await api.post(`/orders/${order.id}/confirm`, {});
-            } else {
-                // If no payment method, maybe just leave as 'created' (Draft)?
-                // User request implied 'creating' orders. Let's confirm to deduct stock as in previous logic.
-                await api.post(`/orders/${order.id}/confirm`, {});
-            }
-
             showToast('Orden creada exitosamente', 'success');
             closeCreateOrderModal();
             loadOrders(); // Refresh table
