@@ -63,7 +63,6 @@ async def create_order(
 
     db_order = Order(
         customer_id=order_in.customer_id,
-        pet_id=order_in.pet_id,
         status="created",
         total_amount=0,
         payment_method=order_in.payment_method,

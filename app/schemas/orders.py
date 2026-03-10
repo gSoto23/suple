@@ -26,7 +26,6 @@ class OrderItem(OrderItemBase):
 
 class OrderBase(BaseModel):
     customer_id: int
-    pet_id: Optional[int] = None
     delivery_address: Optional[str] = None
     notes: Optional[str] = None
 
@@ -40,7 +39,6 @@ class OrderCreate(OrderBase):
         "json_schema_extra": {
             "example": {
                 "customer_id": 1,
-                "pet_id": 5,
                 "notes": "Urgent delivery",
                 "created_via": "whatsapp",
                 "items": [
