@@ -1,5 +1,5 @@
 from typing import List, Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from app.models import Order, OrderItem, Product, Customer, InventoryMovement, U
 from app.schemas import orders
 from app.api import deps
 from app.core.whatsapp import whatsapp_client
+from app.core.logger import app_logger as logger
 
 router = APIRouter()
 
@@ -224,8 +225,6 @@ async def get_order_receipt(
     """
     Get the payment receipt image for an order.
     """
-    import os
-    from fastapi.responses import FileResponse
     
     order = await db.get(Order, order_id)
     if not order:
@@ -343,6 +342,7 @@ async def update_order(
                 db.add(ai_msg)
                 await db.commit()
             except Exception as e:
-                print(f"Error sending WhatsApp confirmation for order {updated_order.id}: {e}")
+                await db.rollback()
+                logger.error(f"Error sending WhatsApp confirmation for order {updated_order.id}: {e}")
 
     return updated_order

@@ -5,3 +5,4 @@ from .users import User, AuditLog
 from .orders import Order, OrderItem
 from .subscriptions import Subscription
 from .chat import ChatMessage
+from .marketing import MarketingTemplate, Campaign, CampaignRecipient

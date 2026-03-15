@@ -1,15 +1,33 @@
 import httpx
 from app.core.config import settings
+from app.core.logger import app_logger as logger
 
 class WhatsAppClient:
     def __init__(self):
         self.token = settings.WHATSAPP_ACCESS_TOKEN
         self.phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
         self.base_url = f"https://graph.facebook.com/v17.0/{self.phone_number_id}/messages"
+        self.base_graph_url = "https://graph.facebook.com/v17.0"
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
+
+    async def get_templates(self):
+        """
+        Fetch approved templates from Meta WhatsApp Business Account.
+        """
+        url = f"{self.base_graph_url}/{settings.WHATSAPP_BUSINESS_ACCOUNT_ID}/message_templates?limit=100"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers)
+            try:
+                response.raise_for_status()
+                return response.json().get("data", [])
+            except httpx.HTTPStatusError as e:
+                error_detail = e.response.text
+                logger.error(f"WhatsApp API Template Fetch Error: {error_detail}")
+                from fastapi import HTTPException
+                raise HTTPException(status_code=e.response.status_code, detail=f"WhatsApp API Error: {error_detail}")
 
     async def send_message(self, to: str, content: str, message_type: str = "text"):
         """
@@ -40,13 +58,22 @@ class WhatsAppClient:
                 return response.json()
             except httpx.HTTPStatusError as e:
                 error_detail = e.response.text
-                print(f"WhatsApp API Error: {error_detail}")
+                logger.error(f"WhatsApp API Error: {error_detail}")
                 from fastapi import HTTPException
                 raise HTTPException(status_code=e.response.status_code, detail=f"WhatsApp API Error: {error_detail}")
 
     async def send_template_message(self, to: str, template_name: str, language_code: str = "es", components: list = None):
         """
         Send a pre-approved template message to a WhatsApp user.
+        components should be formatted according to Meta's API, e.g:
+        [
+            {
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": "Customer Name"}
+                ]
+            }
+        ]
         """
         # Ensure country prefix
         if not to.startswith(settings.COUNTRY_PHONE_CODE):
@@ -64,7 +91,7 @@ class WhatsAppClient:
             }
         }
         
-        if components:
+        if components is not None and len(components) > 0:
             payload["template"]["components"] = components
 
         async with httpx.AsyncClient() as client:
@@ -74,7 +101,7 @@ class WhatsAppClient:
                 return response.json()
             except httpx.HTTPStatusError as e:
                 error_detail = e.response.text
-                print(f"WhatsApp API Template Error: {error_detail}")
+                logger.error(f"WhatsApp API Template Error: {error_detail}")
                 from fastapi import HTTPException
                 raise HTTPException(status_code=e.response.status_code, detail=f"WhatsApp API Error: {error_detail}")
 
@@ -119,7 +146,7 @@ class WhatsAppClient:
                 return response.json()
             except httpx.HTTPStatusError as e:
                 error_detail = e.response.text
-                print(f"WhatsApp API Interactive Error: {error_detail}")
+                logger.error(f"WhatsApp API Interactive Error: {error_detail}")
                 from fastapi import HTTPException
                 raise HTTPException(status_code=e.response.status_code, detail=f"WhatsApp API Error: {error_detail}")
 
@@ -154,7 +181,7 @@ class WhatsAppClient:
                 return response.json()
             except httpx.HTTPStatusError as e:
                 error_detail = e.response.text
-                print(f"WhatsApp API List Error: {error_detail}")
+                logger.error(f"WhatsApp API List Error: {error_detail}")
                 from fastapi import HTTPException
                 raise HTTPException(status_code=e.response.status_code, detail=f"WhatsApp API Error: {error_detail}")
 

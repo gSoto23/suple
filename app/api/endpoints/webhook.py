@@ -3,12 +3,10 @@ from typing import Dict, Any
 import httpx
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.chat import ChatMessage
 from sqlalchemy.ext.asyncio import AsyncSession
-import logging
+from app.core.logger import app_logger as logger
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 @router.get("/webhook")
 async def verify_webhook(request: Request):
@@ -33,26 +31,26 @@ async def forward_to_n8n(payload: Dict[str, Any]):
     Forward the incoming payload to n8n.
     """
     url = settings.N8N_WEBHOOK_URL
-    print(f"FORWARDING TO N8N: {url}", flush=True) # FORCE LOG
+    logger.info(f"FORWARDING TO N8N: {url}")
     
     if not url:
-        print("ERROR: N8N_WEBHOOK_URL not set in environment!", flush=True)
+        logger.info("ERROR: N8N_WEBHOOK_URL not set in environment!")
         return
 
     async with httpx.AsyncClient() as client:
         try:
-            print(f"N8N PAYLOAD: {payload}", flush=True) # FORCE LOG
+            logger.info(f"N8N PAYLOAD: {payload}")
             response = await client.post(url, json=payload, timeout=10.0)
-            print(f"N8N RESPONSE: {response.status_code} - {response.text}", flush=True) # FORCE LOG
+            logger.info(f"N8N RESPONSE: {response.status_code} - {response.text}")
         except Exception as e:
-            print(f"N8N ERROR: {e}", flush=True)
+            logger.info(f"N8N ERROR: {e}")
 
 async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
     """
     Extract message from payload, ENSURE CUSTOMER EXISTS, and save message to DB.
     """
     try:
-        print(f"REAL WEBHOOK PAYLOAD: {payload}", flush=True) # FORCE LOG
+        logger.info(f"REAL WEBHOOK PAYLOAD: {payload}")
         entry = payload.get("entry", [])[0]
         changes = entry.get("changes", [])[0]
         value = changes.get("value", {})
@@ -61,7 +59,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
 
         if messages:
             msg = messages[0]
-            print(f"REAL WEBHOOK MSG: {msg}", flush=True) # FORCE LOG
+            logger.info(f"REAL WEBHOOK MSG: {msg}")
             phone = msg.get("from")
             msg_type = msg.get("type")
             
@@ -72,7 +70,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 profile_name = profile.get("name", "Cliente WhatsApp")
             
             if msg_type == "text":
-                content = msg.get("text", {}).get("body")
+                content = msg.get("text", {}).get("body", "")
             elif msg_type == "interactive":
                 # Handle interactive buttons or lists
                 interactive = msg.get("interactive", {})
@@ -104,7 +102,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 import uuid
                 
                 try:
-                    print(f"DOWNLOADING MEDIA ID: {media_id}", flush=True)
+                    logger.info(f"DOWNLOADING MEDIA ID: {media_id}")
                     media_url = await whatsapp_client.get_media_url(media_id)
                     media_binary = await whatsapp_client.download_media(media_url)
                     
@@ -126,10 +124,10 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                         f.write(media_binary)
                         
                     content = f"{settings.APP_ROOT_PATH}/api/v1/chat/media/{filename}"
-                    print(f"MEDIA SAVED: {content}", flush=True)
+                    logger.info(f"MEDIA SAVED: {content}")
                     
                 except Exception as e:
-                    print(f"FAILED TO DOWNLOAD MEDIA: {e}", flush=True)
+                    logger.info(f"FAILED TO DOWNLOAD MEDIA: {e}")
                     content = f"[ERROR DOWNLOADING MEDIA {msg_type}]"
             
             should_forward_to_n8n = True
@@ -137,7 +135,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
             if phone and content:
                 # --- GET OR CREATE CUSTOMER LOGIC START ---
                 from app.models.customers import Customer
-                from sqlalchemy import select, update
+                from sqlalchemy import select
                 
                 # Handle optional country code dynamically
                 country_code = settings.COUNTRY_PHONE_CODE
@@ -152,26 +150,25 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 customer = result.scalars().first()
                 
                 if not customer:
-                    print(f"CREATING NEW CUSTOMER: {profile_name} - {clean_phone}", flush=True)
+                    logger.info(f"CREATING NEW CUSTOMER: {profile_name} - {clean_phone}")
                     new_customer = Customer(
                         full_name=profile_name,
                         phone=clean_phone,
                         email=None,
-                        is_active=True,
-                        notes="Creado automáticamente desde WhatsApp"
+                        is_active=True
                     )
                     db.add(new_customer)
                     await db.commit()
                     await db.refresh(new_customer)
                     customer = new_customer
-                    print(f"CUSTOMER CREATED ID: {new_customer.id}", flush=True)
+                    logger.info(f"CUSTOMER CREATED ID: {new_customer.id}")
                 else:
-                    print(f"CUSTOMER EXISTS: {customer.full_name}", flush=True)
+                    logger.info(f"CUSTOMER EXISTS: {customer.full_name}")
                 # --- GET OR CREATE CUSTOMER LOGIC END ---
 
                 # Check if AI is active for this customer
                 if not customer.ai_active:
-                    print(f"AI IS OFF FOR CUSTOMER {clean_phone}. Message will be saved but not forwarded to n8n.", flush=True)
+                    logger.info(f"AI IS OFF FOR CUSTOMER {clean_phone}. Message will be saved but not forwarded to n8n.")
                     should_forward_to_n8n = False
 
                 from app.models.orders import Order
@@ -180,7 +177,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 import re
 
                 # --- SAVE INCOMING MESSAGE EARLY FOR CHRONOLOGY ---
-                print(f"SAVING MSG EARLY: {phone} - {content}", flush=True) # FORCE LOG
+                logger.info(f"SAVING MSG EARLY: {phone} - {content}")
                 chat_msg = ChatMessage(
                     customer_phone=phone,
                     sender="user",
@@ -382,7 +379,8 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 return should_forward_to_n8n
                 
     except Exception as e:
-        print(f"ERROR: {e}", flush=True)
+        await db.rollback()
+        logger.error(f"ERROR: {e}")
         import traceback
         traceback.print_exc()
         return True # Default to forward on error to handle gracefully via AI
@@ -419,7 +417,7 @@ async def receive_webhook(
         if should_forward:
             background_tasks.add_task(forward_to_n8n, payload)
         else:
-            print("INTERCEPTED MSG - NOT FORWARDING TO N8N", flush=True)
+            logger.info("INTERCEPTED MSG - NOT FORWARDING TO N8N")
         
         return Response(status_code=200, content="EVENT_RECEIVED")
     except Exception as e:

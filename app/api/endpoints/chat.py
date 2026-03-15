@@ -228,13 +228,34 @@ async def send_admin_template(
     """
     Send a pre-approved template message as an Admin directly from the UI.
     """
+    # 0. Fetch template to build mock components if needed
+    from app.models.marketing import MarketingTemplate
+    from sqlalchemy import select
+    import re
+    
+    result = await db.execute(select(MarketingTemplate).where(MarketingTemplate.name == message.template_name, MarketingTemplate.language == message.language_code))
+    template = result.scalars().first()
+    
+    components = []
+    if template and template.components:
+        for c in template.components:
+            text = c.get("text", "")
+            matches = re.findall(r'\\{\\{\\d+\\}\\}', text)
+            if matches:
+                params = [{"type": "text", "text": "DatoGenérico"} for _ in matches]
+                components.append({
+                    "type": c.get("type", "body"),
+                    "parameters": params
+                })
+
     # 1. Send via WhatsApp FIRST
     from app.core.whatsapp import whatsapp_client
     try:
         await whatsapp_client.send_template_message(
             to=phone,
             template_name=message.template_name,
-            language_code=message.language_code
+            language_code=message.language_code,
+            components=components
         )
     except Exception as e:
         error_msg = str(e.detail) if hasattr(e, 'detail') else str(e)

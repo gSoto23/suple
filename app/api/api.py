@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import auth, users, products, orders, customers, chat, webhook, subscriptions, debug
+from app.api.endpoints import auth, users, products, orders, customers, chat, webhook, subscriptions, debug, marketing
 
 api_router = APIRouter()
 api_router.include_router(debug.router, prefix="/debug", tags=["debug"])
@@ -11,3 +11,4 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(webhook.router, tags=["webhook"])
 api_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["subscriptions"])
+api_router.include_router(marketing.router, prefix="/marketing", tags=["marketing"])

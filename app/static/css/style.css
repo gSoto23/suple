@@ -168,6 +168,51 @@ body {
     .mobile-only {
         display: block;
     }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 15px;
+    }
+    .page-header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    .page-header-actions .btn {
+        flex: 1 1 45%;
+        font-size: 0.85rem;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .chat-modal-filters {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .chat-modal-filters input, .chat-modal-filters button {
+        width: 100% !important;
+        margin-bottom: 5px;
+    }
+    
+    .chat-modal-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 15px !important;
+    }
+    .chat-modal-header-actions {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+    .mobile-hidden-filters {
+        display: none !important;
+    }
+    .mobile-hidden-filters.show {
+        display: flex !important;
+    }
 }
 
 @media (min-width: 769px) {

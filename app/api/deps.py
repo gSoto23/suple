@@ -1,17 +1,15 @@
-from typing import Generator, Annotated
+from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.core import security
 from app.core.config import settings
 from app.core.database import get_db
 from app.models import User
 from app.schemas.auth import TokenData
 
-from app.core.config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.APP_ROOT_PATH}{settings.API_V1_STR}/auth/login")
 

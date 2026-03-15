@@ -1,7 +1,6 @@
 from pydantic import BaseModel, EmailStr, computed_field
-from typing import Optional, List, Any
+from typing import Optional, List
 from datetime import datetime
-import os
 
 # Subscription Schemas (Forward declaration if needed, or simple dict for now)
 class SubscriptionBasic(BaseModel):

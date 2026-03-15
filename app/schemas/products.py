@@ -39,7 +39,7 @@ class Product(ProductBase):
     class Config:
         from_attributes = True
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 # Inventory Config Schemas
 class InventoryConfigBase(BaseModel):

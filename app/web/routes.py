@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from typing import Annotated
-from app.api import deps
 from app.core.config import settings
 
 router = APIRouter()
@@ -36,3 +34,7 @@ async def users_page(request: Request):
 @router.get("/service", response_class=HTMLResponse)
 async def service_page(request: Request):
     return templates.TemplateResponse("service.html", {"request": request, "title": "Servicio al Cliente"})
+
+@router.get("/marketing", response_class=HTMLResponse)
+async def marketing_page(request: Request):
+    return templates.TemplateResponse("marketing.html", {"request": request, "title": "Marketing"})

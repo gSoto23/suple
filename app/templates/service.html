@@ -84,9 +84,9 @@
     <!-- Chat History Modal -->
     <div id="chat-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 600px; height: 80vh; display: flex; flex-direction: column;">
-            <div class="modal-header">
+            <div class="modal-header chat-modal-header">
                 <h3>Chat con <span id="chat-modal-phone"></span></h3>
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="chat-modal-header-actions" style="display: flex; align-items: center; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 0.9em; font-weight: bold;">IA:</span>
                         <label class="pill-switch" title="Activar/Desactivar Respuesta de IA">
@@ -98,7 +98,11 @@
                 </div>
             </div>
 
-            <div
+            <div style="padding: 10px 10px 0 10px;" class="mobile-only">
+                <button class="btn btn-sm" onclick="document.getElementById('mobile-filters-panel').classList.toggle('show')" style="width: 100%; border: 1px solid #ccc; background: white;"><i class="fa-solid fa-sliders"></i> Mostrar / Ocultar Filtros</button>
+            </div>
+
+            <div id="mobile-filters-panel" class="chat-modal-filters mobile-hidden-filters"
                 style="padding: 10px; border-bottom: 1px solid var(--color-border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <input type="text" id="chat-text-search" placeholder="Buscar texto..."
                     style="padding: 5px; border: 1px solid #ccc; border-radius: 4px; flex: 1;">
@@ -127,19 +131,8 @@
                     </button>
                     <div id="template-menu"
                         style="display: none; position: absolute; bottom: 45px; left: 0; background: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 250px; z-index: 100;">
-                        <ul style="list-style: none; margin: 0; padding: 0;">
-                            <!-- Plantilla de Seguimiento "chat_follow" -->
-                            <li style="padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 0.9em;"
-                                onclick="sendAdminTemplate('chat_follow', 'es_CR', 'Hola, soy un asesor ocupas ayuda con tu pedido o tienes alguna consulta?'); document.getElementById('template-menu').style.display = 'none';">
-                                <strong>Seguimiento de Consulta</strong><br><span
-                                    style="color: #666; font-size: 0.8em;">"Hola, soy un asesor ocupas ayuda..."</span>
-                            </li>
-                            <!-- Prueba HelloWorld -->
-                            <li style="padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 0.9em;"
-                                onclick="sendAdminTemplate('hello_world', 'en_US', 'Hola. ¡Bienvenido a nuestra plataforma!'); document.getElementById('template-menu').style.display = 'none';">
-                                <strong>Hello World (Prueba)</strong><br><span
-                                    style="color: #666; font-size: 0.8em;">Plantilla de prueba estándar de Meta</span>
-                            </li>
+                        <ul id="chat-template-list" style="list-style: none; margin: 0; padding: 0;">
+                            <li style="padding: 10px; text-align: center; color: #888; font-size: 0.9em;">Cargando plantillas...</li>
                         </ul>
                     </div>
                 </div>
@@ -165,6 +158,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
         await checkAuth();
         loadServiceCustomers();
+        loadChatTemplatesForMenu();
     });
 
     async function loadServiceCustomers() {
@@ -359,7 +353,7 @@
                 // Format date as DD/MM/YYYY HH:mm in Costa Rica Timezone
                 const time = formatDateTimeCR(msg.created_at);
 
-                let content = escapeHTML(msg.content);
+                let content = escapeHTML(msg.content).replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
                 if (msg.message_type === 'image') {
                     content = `<a href="${escapeHTML(msg.content)}" target="_blank" style="color: ${isSystem ? (isAdmin ? 'white' : 'blue') : 'blue'}; text-decoration: underline; font-weight: bold;">
                                 <i class="fa-solid fa-image"></i> IMAGEN
@@ -506,6 +500,68 @@
             showToast(errorMsg, 'error');
             const el = document.getElementById(`msg-${tempId}`);
             if (el) el.innerHTML = el.innerHTML.replace('Enviando...', `<span style="color:red;" title="${errorMsg}">Error (Meta declinó)</span>`);
+        }
+    }
+
+    async function loadChatTemplatesForMenu() {
+        const api = new ApiClient();
+        const ul = document.getElementById('chat-template-list');
+        try {
+            const templates = await api.get('/marketing/templates?limit=100');
+            let approved = templates.filter(t => t.status === 'APPROVED');
+            
+            // ONLY ALLOW templates without variables for Chat Activation
+            approved = approved.filter(t => {
+                if (!t.components) return true;
+                // Stringify the entire components array to catch variables in headers, bodies, or buttons
+                // Also check for `example` objects which often contain `body_text` dicts with variables
+                const rawComponents = JSON.stringify(t.components);
+                // A strong regex to find {{number}} anywhere
+                const hasParams = /\{\{\d+\}\}/.test(rawComponents);
+                return !hasParams;
+            });
+
+            if (approved.length === 0) {
+                ul.innerHTML = `
+                    <li style="padding: 15px; text-align: center; color: #6c757d; font-size: 0.9em; background-color: #f8f9fa;">
+                        <i class="fa-solid fa-folder-open mb-2" style="font-size: 1.5em; opacity: 0.5;"></i><br>
+                        No hay plantillas aprobadas sin variables.<br>Crea una plantilla simple en Meta.
+                    </li>`;
+                return;
+            }
+            ul.innerHTML = approved.map(t => {
+                let bodyText = "";
+                if (t.components) {
+                    const bodyComp = t.components.find(c => c.type === 'BODY');
+                    if (bodyComp && bodyComp.text) {
+                        bodyText = "\n\n" + bodyComp.text;
+                    }
+                }
+                
+                // Use encodeURIComponent to safely transport text containing newlines and single quotes inside HTML attributes
+                const fullMessage = "Plantilla enviada: " + t.name + bodyText;
+                const safeMessage = encodeURIComponent(fullMessage);
+                
+                let extraAction = `onclick="sendAdminTemplate('${t.name}', '${t.language}', decodeURIComponent('${safeMessage}')); document.getElementById('template-menu').style.display = 'none';"`;
+                
+                return `
+                <li style="padding: 12px 15px; border-bottom: 1px solid #e9ecef; cursor: pointer; transition: background-color 0.2s;" 
+                    onmouseover="this.style.backgroundColor='#f1f3f5'" 
+                    onmouseout="this.style.backgroundColor='transparent'"
+                    ${extraAction}>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: #2b3035; font-size: 0.95em; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-regular fa-message" style="color: #0d6efd;"></i>
+                            <span>${escapeHTML(t.name)}</span>
+                        </strong> 
+                        <span class="badge bg-light text-dark border" style="font-size: 0.65em; margin-left: 10px;">${escapeHTML(t.language)}</span>
+                    </div>
+                </li>
+                `;
+            }).join('');
+        } catch(e) {
+            console.error(e);
+            ul.innerHTML = '<li style="padding: 10px; text-align: center; color: red;">Error al cargar.</li>';
         }
     }
 

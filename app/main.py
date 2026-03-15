@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router
 from app.core.config import settings
+from app.core.logger import app_logger as logger
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -38,7 +39,7 @@ from fastapi.responses import JSONResponse
 @app.exception_handler(Exception)
 async def validation_exception_handler(request: Request, exc: Exception):
     error_msg = "".join(traceback.format_exception(None, exc, exc.__traceback__))
-    print(f"Global Exception: {error_msg}")
+    logger.error(f"Global Exception: {error_msg}")
     return JSONResponse(
         status_code=500,
         content={"message": "Internal Server Error", "detail": str(exc), "trace": error_msg},

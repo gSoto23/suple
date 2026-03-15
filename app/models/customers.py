@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, JSON, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -22,7 +22,9 @@ class Customer(Base):
     age = Column(Integer, nullable=True)
     medical_data = Column(Text, nullable=True)
     
-    notes = Column(Text, nullable=True)
+    # Marketing Opt-out status
+    marketing_opt_in = Column(Boolean, default=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

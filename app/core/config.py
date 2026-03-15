@@ -18,14 +18,15 @@ class Settings(BaseSettings):
     
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:8000", "http://localhost:3000"]
 
-    # WhatsApp
-    WHATSAPP_ACCESS_TOKEN: str = ""
-    WHATSAPP_PHONE_NUMBER_ID: str = ""
-    WHATSAPP_VERIFY_TOKEN: str = ""
+    # WhatsApp - Strictly Required without defaults
+    WHATSAPP_ACCESS_TOKEN: str
+    WHATSAPP_PHONE_NUMBER_ID: str
+    WHATSAPP_BUSINESS_ACCOUNT_ID: str
+    WHATSAPP_VERIFY_TOKEN: str
     
-    # n8n
-    N8N_WEBHOOK_URL: str = ""
-    N8N_API_KEY: str = ""
+    # n8n - Strictly Required without defaults
+    N8N_WEBHOOK_URL: str
+    N8N_API_KEY: str
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

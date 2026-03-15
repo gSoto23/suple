@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3>Campañas de WhatsApp</h3>
+        <button class="btn btn-table-action" onclick="openCreateCampaignModal()"><i class="fa-solid fa-plus"></i> Nueva Campaña</button>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table sortable" id="campaigns-table">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0, 'campaigns-table')">ID <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(1, 'campaigns-table')">Nombre <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(2, 'campaigns-table')">Plantilla ID <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(3, 'campaigns-table')">Estado <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(4, 'campaigns-table')">Creada <i class="fa-solid fa-sort"></i></th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3>Plantillas de Meta</h3>
+        <button class="btn btn-primary" onclick="syncTemplates()" id="btn-sync-templates"><i class="fa-solid fa-rotate"></i> Sincronizar de Meta</button>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table sortable" id="templates-table">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0, 'templates-table')">ID <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(1, 'templates-table')">Nombre (Meta) <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(2, 'templates-table')">Idioma <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(3, 'templates-table')">Categoría <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable(4, 'templates-table')">Estado <i class="fa-solid fa-sort"></i></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Template Sync Modal (No longer used directly, we just show a toast or loader now, but keeping div structure clean) -->
+
+<!-- Campaign Modal -->
+<div id="campaign-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>Nueva Campaña</h3>
+            <button onclick="closeCampaignModal()" class="modal-close">&times;</button>
+        </div>
+        <form id="campaign-form" style="display: flex; flex-direction: column; gap: 15px;">
+            <div class="form-group">
+                <label>Nombre Interno de la Campaña</label>
+                <input type="text" name="name" required placeholder="ej. Promoción VIP Marzo">
+            </div>
+            <div class="form-group">
+                <label>Plantilla a Enviar</label>
+                <select name="template_id" id="campaign-template-select" required style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);" onchange="handleTemplateSelection()">
+                    <!-- Populated by JS -->
+                </select>
+            </div>
+            
+            <div id="dynamic-variables-container" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid var(--color-border);">
+                <h4>Mapeo de Variables</h4>
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">Esta plantilla requiere variables. Asigna a qué campo de la base de datos de clientes corresponde cada una.</p>
+                <div id="variables-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div style="text-align: right; margin-top: 10px;">
+                <button type="submit" class="btn btn-table-action">Siguiente: Seleccionar Clientes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Campaign Manage Modal (Add Recipients / Execute) -->
+<div id="campaign-manage-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px; width: 95%;">
+        <div class="modal-header">
+            <h3 id="manage-campaign-title">Gestionar Campaña #<span id="manage-campaign-id"></span></h3>
+            <button onclick="closeCampaignManageModal()" class="modal-close">&times;</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <div>
+                    <strong>Estado:</strong> <span id="manage-campaign-status" class="badge"></span>
+                </div>
+                <div>
+                    <button class="btn btn-primary" id="btn-execute-campaign" onclick="executeCampaign()" style="display:none;"><i class="fa-brands fa-whatsapp"></i> Iniciar Envío Masivo</button>
+                </div>
+            </div>
+
+            <!-- Add Recipients Section -->
+            <div id="add-recipients-section">
+                <h4>1. Añadir Destinatarios</h4>
+                <div style="background: #fff; border: 1px solid var(--color-border); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="recipient-search" placeholder="Buscar por nombre o teléfono..." style="flex: 1; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);" onkeyup="filterCustomersList()">
+                        <button class="btn btn-secondary" onclick="addSelectedRecipients()" id="btn-add-recipients"><i class="fa-solid fa-user-plus"></i> Añadir Seleccionados</button>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                        <input type="checkbox" id="select-all-customers" onchange="toggleAllCustomers(this)" style="margin-right: 10px; transform: scale(1.2);">
+                        <label for="select-all-customers" style="font-weight: bold; cursor: pointer; user-select: none;">Seleccionar Todos (filtrados)</label>
+                    </div>
+
+                    <div id="customers-checklist-container" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; border: 1px solid #eee; border-radius: 6px; padding: 10px;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recipients List -->
+            <div>
+                <h4>2. Lista de Envíos</h4>
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table" id="recipients-table">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Estado de Envío</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    let globalTemplates = [];
+    let globalCustomers = [];
+    let currentManageCampaignId = null;
+
+    const campaignStatusMap = {
+        'draft': 'Borrador',
+        'scheduled': 'Programada',
+        'running': 'En Progreso',
+        'completed': 'Completada',
+        'cancelled': 'Cancelada'
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        loadTemplates();
+        loadCampaigns();
+        loadCustomersChecklist();
+    });
+
+    async function loadTemplates() {
+        const api = new ApiClient();
+        try {
+            globalTemplates = await api.get('/marketing/templates');
+            const tbody = document.querySelector('#templates-table tbody');
+            tbody.innerHTML = globalTemplates.map(t => `
+                <tr>
+                    <td>#${t.id}</td>
+                    <td><strong>${escapeHTML(t.name)}</strong></td>
+                    <td>${escapeHTML(t.language)}</td>
+                    <td>${escapeHTML(t.category)}</td>
+                    <td><span class="badge ${t.status === 'APPROVED' ? 'paid' : 'pending_payment'}">${t.status}</span></td>
+                </tr>
+            `).join('');
+            
+            // Populate Campaign Modal Select
+            const select = document.getElementById('campaign-template-select');
+            select.innerHTML = '<option value="">-- Seleccionar Plantilla --</option>' + 
+                globalTemplates.filter(t => t.status === 'APPROVED').map(t => `<option value="${t.id}">${t.name} (${t.language})</option>`).join('');
+                
+        } catch (e) {
+            console.error("Error loading templates", e);
+        }
+    }
+
+    async function loadCampaigns() {
+        const api = new ApiClient();
+        try {
+            const campaigns = await api.get('/marketing/campaigns');
+            const tbody = document.querySelector('#campaigns-table tbody');
+            tbody.innerHTML = campaigns.map(c => `
+                <tr>
+                    <td>#${c.id}</td>
+                    <td><strong>${escapeHTML(c.name)}</strong></td>
+                    <td>Plantilla #${c.template_id}</td>
+                    <td><span class="badge ${c.status}">${campaignStatusMap[c.status] || c.status}</span></td>
+                    <td>${formatDateCR(c.created_at)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-table-action" onclick="openCampaignManageModal(${c.id}, '${c.status}')">Gestionar</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error("Error loading campaigns", e);
+        }
+    }
+
+    async function loadCustomersChecklist() {
+        const api = new ApiClient();
+        try {
+            globalCustomers = await api.get('/customers/?limit=1000');
+            renderCustomersChecklist(globalCustomers);
+        } catch(e) {
+            console.error("Error loading customers", e);
+        }
+    }
+
+    function renderCustomersChecklist(customersArr) {
+        const container = document.getElementById('customers-checklist-container');
+        if (customersArr.length === 0) {
+            container.innerHTML = '<p style="color: #888; text-align: center; padding: 10px;">No hay clientes que coincidan.</p>';
+            return;
+        }
+
+        container.innerHTML = customersArr.map(c => `
+            <div class="customer-check-item" style="display: flex; align-items: center; padding: 5px; border-radius: 4px; transition: background 0.2s;">
+                <input type="checkbox" id="cust_${c.id}" value="${c.id}" class="customer-checkbox" style="margin-right: 12px; transform: scale(1.2);">
+                <label for="cust_${c.id}" style="cursor: pointer; flex: 1; user-select: none;">
+                    <strong>${escapeHTML(c.full_name)}</strong> <span style="color: #666; font-size: 0.9em;">(${escapeHTML(c.phone)})</span>
+                </label>
+            </div>
+        `).join('');
+    }
+
+    function filterCustomersList() {
+        const query = document.getElementById('recipient-search').value.toLowerCase();
+        const filtered = globalCustomers.filter(c => 
+            c.full_name.toLowerCase().includes(query) || 
+            (c.phone && c.phone.toLowerCase().includes(query))
+        );
+        renderCustomersChecklist(filtered);
+        // Reset select all
+        document.getElementById('select-all-customers').checked = false;
+    }
+
+    function toggleAllCustomers(checkbox) {
+        const isChecked = checkbox.checked;
+        const visibleCheckboxes = document.querySelectorAll('#customers-checklist-container .customer-checkbox');
+        visibleCheckboxes.forEach(cb => {
+            cb.checked = isChecked;
+        });
+    }
+
+    // Template Sync
+    async function syncTemplates() {
+        const btn = document.getElementById('btn-sync-templates');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...';
+        
+        try {
+            const api = new ApiClient();
+            const res = await api.post('/marketing/templates/sync');
+            showToast(`Sincronización completa. ${res.synced_count} plantillas procesadas.`, 'success');
+            await loadTemplates();
+        } catch(e) {
+            showToast('Error al sincronizar plantillas: ' + (e.detail || e.message), 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar de Meta';
+        }
+    }
+
+    // Dynamic Variables Logic
+    function handleTemplateSelection() {
+        const select = document.getElementById('campaign-template-select');
+        const container = document.getElementById('dynamic-variables-container');
+        const list = document.getElementById('variables-list');
+        
+        const templateId = parseInt(select.value);
+        if (!templateId) {
+            container.style.display = 'none';
+            return;
+        }
+
+        const template = globalTemplates.find(t => t.id === templateId);
+        if (!template || !template.components) {
+            container.style.display = 'none';
+            return;
+        }
+
+        let hasVariables = false;
+        let htmlLines = '';
+
+        const customerFields = [
+            {value: 'full_name', label: 'Nombre Completo'},
+            {value: 'phone', label: 'Teléfono'},
+            {value: 'email', label: 'Email'}
+        ];
+
+        template.components.forEach(comp => {
+            const type = comp.type.toLowerCase();
+            if (['header', 'body'].includes(type) && comp.text) {
+                // Find {{1}}, {{2}} etc
+                const matches = comp.text.match(/\{\{(\d+)\}\}/g);
+                if (matches) {
+                    hasVariables = true;
+                    // Sort numerically just in case
+                    const uniqMatches = [...new Set(matches)].sort((a,b) => parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]));
+                    
+                    uniqMatches.forEach(match => {
+                        const index = match.match(/\d+/)[0];
+                        const mapKey = `${type}_${index}`;
+                        
+                        htmlLines += `
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                <span style="font-weight: bold; width: 120px;">[${type.toUpperCase()}] ${match}</span>
+                                <i class="fa-solid fa-arrow-right" style="color: #999;"></i>
+                                <select name="var_${mapKey}" required style="flex: 1; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+                                    <option value="">-- Asignar Campo --</option>
+                                    ${customerFields.map(f => `<option value="${f.value}">${f.label}</option>`).join('')}
+                                </select>
+                            </div>
+                        `;
+                    });
+                }
+            }
+        });
+
+        if (hasVariables) {
+            list.innerHTML = htmlLines;
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    // Campaign Create Modal
+    function openCreateCampaignModal() {
+        document.getElementById('campaign-form').reset();
+        document.getElementById('campaign-modal').style.display = 'flex';
+    }
+    function closeCampaignModal() {
+        document.getElementById('campaign-modal').style.display = 'none';
+    }
+    document.getElementById('campaign-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = {
+            name: formData.get('name'),
+            template_id: parseInt(formData.get('template_id')),
+            variables_mapping: {}
+        };
+        
+        // Extract variables mapping
+        for (let pair of formData.entries()) {
+            if (pair[0].startsWith('var_')) {
+                const mapKey = pair[0].replace('var_', '');
+                data.variables_mapping[mapKey] = pair[1];
+            }
+        }
+        
+        try {
+            const api = new ApiClient();
+            const newCampaign = await api.post('/marketing/campaigns', data);
+            showToast('Campaña creada. Añade destinatarios.', 'success');
+            closeCampaignModal();
+            loadCampaigns();
+            openCampaignManageModal(newCampaign.id, newCampaign.status);
+        } catch(e) {
+            showToast('Error al crear campaña: ' + (e.detail || e.message), 'error');
+        }
+    });
+
+    // Campaign Manage Modal
+    async function openCampaignManageModal(campaignId, status) {
+        currentManageCampaignId = campaignId;
+        document.getElementById('manage-campaign-id').innerText = campaignId;
+        document.getElementById('manage-campaign-status').innerText = campaignStatusMap[status] || status;
+        document.getElementById('manage-campaign-status').className = 'badge ' + status;
+        
+        const executeBtn = document.getElementById('btn-execute-campaign');
+        const addSection = document.getElementById('add-recipients-section');
+        
+        if (status === 'draft' || status === 'scheduled') {
+            executeBtn.style.display = 'inline-block';
+            addSection.style.display = 'block';
+        } else {
+            executeBtn.style.display = 'none';
+            addSection.style.display = 'none';
+        }
+
+        document.getElementById('campaign-manage-modal').style.display = 'flex';
+        await loadCampaignRecipients(campaignId);
+    }
+    function closeCampaignManageModal() {
+        document.getElementById('campaign-manage-modal').style.display = 'none';
+        currentManageCampaignId = null;
+    }
+
+    async function loadCampaignRecipients(campaignId) {
+        const api = new ApiClient();
+        const tbody = document.querySelector('#recipients-table tbody');
+        tbody.innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+        try {
+            const recipients = await api.get(`/marketing/campaigns/${campaignId}/recipients`);
+            if (recipients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3">Sin destinatarios.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = recipients.map(r => {
+                const customer = globalCustomers.find(c => c.id === r.customer_id);
+                const customerName = customer ? customer.full_name : `ID: ${r.customer_id}`;
+                return `
+                <tr>
+                    <td>${customerName}</td>
+                    <td><span class="badge ${r.status === 'sent' ? 'paid' : (r.status === 'failed' ? 'cancelled' : '')}">${r.status}</span></td>
+                    <td style="color:red; font-size: 0.85rem;">${r.error_message || '-'}</td>
+                </tr>
+                `;
+            }).join('');
+        } catch(e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="3">Error al cargar.</td></tr>';
+        }
+    }
+
+    async function addSelectedRecipients() {
+        const checkboxes = document.querySelectorAll('#customers-checklist-container .customer-checkbox:checked');
+        const customerIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        
+        if (customerIds.length === 0) {
+            showToast('Selecciona al menos un cliente', 'error');
+            return;
+        }
+        
+        const btn = document.getElementById('btn-add-recipients');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...';
+
+        const api = new ApiClient();
+        try {
+            await api.post(`/marketing/campaigns/${currentManageCampaignId}/recipients`, customerIds);
+            showToast(`${customerIds.length} destinatarios añadidos exitosamente.`, 'success');
+            
+            // Uncheck processed checkboxes to reset state
+            checkboxes.forEach(cb => cb.checked = false);
+            document.getElementById('select-all-customers').checked = false;
+
+            loadCampaignRecipients(currentManageCampaignId);
+        } catch(e) {
+            showToast('Error al añadir destinatarios: ' + (e.detail || e.message), 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+
+    async function executeCampaign() {
+        showConfirm(
+            'Iniciar Envío Masivo',
+            `¿Estás seguro de que deseas ejecutar la campaña #${currentManageCampaignId}? Se enviarán mensajes a todos los destinatarios configurados prestando cobros en tu cuenta de Meta.`,
+            async () => {
+                const api = new ApiClient();
+                const executeBtn = document.getElementById('btn-execute-campaign');
+                executeBtn.disabled = true;
+                executeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+                try {
+                    const result = await api.post(`/marketing/campaigns/${currentManageCampaignId}/execute`);
+                    showToast(`Campaña ejecutada. Éxitos: ${result.success_count}, Fallos: ${result.failure_count}`, 'success');
+                    closeCampaignManageModal();
+                    loadCampaigns();
+                } catch(e) {
+                    showToast('Error al ejecutar: ' + (e.detail || e.message), 'error');
+                } finally {
+                    executeBtn.disabled = false;
+                    executeBtn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Iniciar Envío Masivo';
+                }
+            }
+        );
+    }
+</script>
+{% endblock %}
