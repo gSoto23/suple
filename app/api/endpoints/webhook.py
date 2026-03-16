@@ -189,6 +189,11 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 # --------------------------------------------------
 
                 # --- RECEIPT INTERCEPTION LOGIC START ---
+                
+                # Bypassing the AI completely if the admin took control
+                if not customer.ai_active:
+                    logger.info("AI is OFF. Bypassing State Machine Receipt Interception.")
+                    return should_forward_to_n8n
 
                 # Quick helper to save internal AI messages so n8n/UI can see the history
                 async def _save_ai_msg(text: str):

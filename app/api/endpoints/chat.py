@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List, Optional
@@ -326,3 +326,104 @@ async def get_media(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
         
     return FileResponse(file_path)
+
+@router.post("/{phone}/media", response_model=ChatMessageRead)
+async def send_media_attachment(
+    phone: str,
+    file: UploadFile = File(...),
+    caption: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Upload and send a media file. ONLY allowed if AI is OFF.
+    """
+    import os
+    import shutil
+    import uuid
+    from app.core.whatsapp import whatsapp_client
+    
+    # 1. Check Customer and AI status
+    phones_to_check = [phone]
+    if phone.startswith("506") and len(phone) > 8:
+        phones_to_check.append(phone[3:])
+    elif len(phone) == 8:
+        phones_to_check.append(f"506{phone}")
+        
+    result = await db.execute(select(Customer).where(Customer.phone.in_(phones_to_check)))
+    customer = result.scalars().first()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+        
+    if customer.ai_active:
+        raise HTTPException(status_code=400, detail="Debes desactivar la IA (IA: OFF) para enviar archivos y tomar el control del chat.")
+        
+    # 2. Determine Media Type
+    content_type = file.content_type or "application/octet-stream"
+    media_type = "document" # default
+    if content_type.startswith("image/"):
+        media_type = "image"
+    elif content_type.startswith("video/"):
+        media_type = "video"
+    elif content_type.startswith("audio/"):
+        media_type = "audio"
+        
+    # 3. Read File and Upload to Meta
+    content = await file.read()
+    try:
+        media_id = await whatsapp_client.upload_media(content, content_type, file.filename)
+    except Exception as e:
+        error_msg = str(e.detail) if hasattr(e, 'detail') else str(e)
+        raise HTTPException(status_code=500, detail=f"Error al subir archivo a Meta: {error_msg}")
+        
+    # 4. Send Message via Meta
+    try:
+        await whatsapp_client.send_media_message(
+            to=phone,
+            media_id=media_id,
+            media_type=media_type,
+            filename=file.filename if media_type == "document" else None,
+            caption=caption
+        )
+    except Exception as e:
+        error_msg = str(e.detail) if hasattr(e, 'detail') else str(e)
+        raise HTTPException(status_code=400, detail=f"Error enviando mensaje multimedia: {error_msg}")
+        
+    # 5. Save locally for dashboard rendering
+    ext = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4().hex}{ext}"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    upload_dir = os.path.join(base_dir, "static", "chat_uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    local_path = os.path.join(upload_dir, unique_filename)
+    
+    with open(local_path, "wb") as f:
+        f.write(content)
+        
+    local_url = f"{settings.APP_ROOT_PATH}/api/v1/chat/media/{unique_filename}"
+    
+    # 6. Save to DB
+    # We store the URL in the 'content' column to maintain compatibility with webhook logic
+    chat_message = ChatMessage(
+        customer_phone=phone,
+        sender="admin",
+        message_type=media_type,
+        content=local_url
+    )
+    db.add(chat_message)
+    
+    # Send caption as a separate text message in the UI history (Meta sent it together though)
+    if caption:
+        caption_msg = ChatMessage(
+            customer_phone=phone,
+            sender="admin",
+            message_type="text",
+            content=caption
+        )
+        db.add(caption_msg)
+        
+    await db.commit()
+    await db.refresh(chat_message)
+    
+    return chat_message
+

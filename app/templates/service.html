@@ -137,6 +137,25 @@
                     </div>
                 </div>
 
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="file" id="admin-chat-file" style="display: none;" onchange="handleFileSelect(this)">
+                    <button class="btn btn-outline" id="btn-attach-file"
+                        style="border-radius: 5px; height: 40px; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--color-border); background: white; width: 40px;"
+                        onclick="document.getElementById('admin-chat-file').click()"
+                        title="Adjuntar Archivo (Solo con IA deshabilitada)">
+                        <i class="fa-solid fa-paperclip" style="color: #6c757d;"></i>
+                    </button>
+                    <!-- Staged File Indicator -->
+                    <div id="staged-file-indicator" style="display: none; position: absolute; top: -10px; right: -5px; background: #dc3545; color: white; font-size: 0.6em; padding: 2px 6px; border-radius: 10px; font-weight: bold;">
+                        1
+                    </div>
+                </div>
+
+                <div id="file-name-preview" style="display: none; position: absolute; bottom: 65px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8em; align-items: center; gap: 8px; z-index: 10;">
+                    <i class="fa-solid fa-file"></i> <span id="file-name-text"></span>
+                    <button onclick="clearStagedFile()" style="background: none; border: none; color: #ff6b6b; cursor: pointer; padding: 0;"><i class="fa-solid fa-times"></i></button>
+                </div>
+
                 <input type="text" id="admin-chat-input" placeholder="Escribe un mensaje como administrador..."
                     style="flex: 1; padding: 10px; border: 1px solid var(--color-border); border-radius: 20px;"
                     onkeypress="if(event.key === 'Enter') sendAdminMessage()">
@@ -204,11 +223,22 @@
 
         // Find customer to set the toggle state
         const customer = allCustomersData.find(c => c.phone === phone);
+        const attachBtn = document.getElementById('btn-attach-file');
         if (customer) {
             document.getElementById('ai-toggle-switch').checked = customer.ai_active;
+            if (customer.ai_active) {
+                attachBtn.setAttribute('disabled', 'true');
+                attachBtn.title = "Apaga la IA para adjuntar archivos";
+            } else {
+                attachBtn.removeAttribute('disabled');
+                attachBtn.title = "Adjuntar Archivo";
+            }
+        } else {
+            attachBtn.removeAttribute('disabled');
         }
 
         document.getElementById('chat-modal').style.display = 'flex';
+        clearStagedFile();
         await loadChatHistory();
 
         if (chatPollInterval) clearInterval(chatPollInterval);
@@ -355,8 +385,18 @@
 
                 let content = escapeHTML(msg.content).replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
                 if (msg.message_type === 'image') {
-                    content = `<a href="${escapeHTML(msg.content)}" target="_blank" style="color: ${isSystem ? (isAdmin ? 'white' : 'blue') : 'blue'}; text-decoration: underline; font-weight: bold;">
-                                <i class="fa-solid fa-image"></i> IMAGEN
+                    const mediaUrl = escapeHTML(msg.content);
+                    content = `<a href="${mediaUrl}" target="_blank">
+                                <img src="${mediaUrl}" style="max-width: 100%; border-radius: 8px; margin-bottom: 5px; display: block;">
+                               </a>`;
+                } else if (msg.message_type === 'document' || msg.message_type === 'audio' || msg.message_type === 'video') {
+                    const mediaUrl = escapeHTML(msg.content);
+                    let icon = 'fa-file-lines';
+                    if(msg.message_type === 'audio') icon = 'fa-file-audio';
+                    if(msg.message_type === 'video') icon = 'fa-file-video';
+                    
+                    content = `<a href="${mediaUrl}" target="_blank" style="color: ${isSystem ? (isAdmin ? 'white' : 'blue') : 'blue'}; text-decoration: underline; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                                <i class="fa-solid ${icon}"></i> Descargar ${msg.message_type.toUpperCase()}
                                </a>`;
                 }
 
@@ -389,6 +429,18 @@
         try {
             await api.post(`/chat/${currentChatPhone}/ai_toggle?active=${isActive}`);
             showToast(`IA ${isActive ? 'activada' : 'desactivada'} para este usuario`, 'success');
+            
+            // Update UI instantly for better UX
+            const attachBtn = document.getElementById('btn-attach-file');
+            if (isActive) {
+                attachBtn.setAttribute('disabled', 'true');
+                attachBtn.title = "Apaga la IA para adjuntar archivos";
+                clearStagedFile();
+            } else {
+                attachBtn.removeAttribute('disabled');
+                attachBtn.title = "Adjuntar Archivo";
+            }
+            
             // Update local state
             const customer = allCustomersData.find(c => c.phone === currentChatPhone);
             if (customer) customer.ai_active = isActive;
@@ -404,54 +456,119 @@
         }
     }
 
+    let stagedFile = null;
+
+    function handleFileSelect(input) {
+        if (!input.files || input.files.length === 0) return;
+        stagedFile = input.files[0];
+        
+        // Show visual indicators
+        document.getElementById('staged-file-indicator').style.display = 'block';
+        document.getElementById('file-name-text').innerText = stagedFile.name;
+        document.getElementById('file-name-preview').style.display = 'flex';
+        
+        // Focus the text input so they can type a caption immediately
+        document.getElementById('admin-chat-input').focus();
+    }
+
+    function clearStagedFile() {
+        stagedFile = null;
+        const fileInput = document.getElementById('admin-chat-file');
+        if(fileInput) fileInput.value = '';
+        const indicator = document.getElementById('staged-file-indicator');
+        if(indicator) indicator.style.display = 'none';
+        const preview = document.getElementById('file-name-preview');
+        if(preview) preview.style.display = 'none';
+    }
+
     async function sendAdminMessage() {
         if (!currentChatPhone) return;
+        
         const input = document.getElementById('admin-chat-input');
         const text = input.value.trim();
-        if (!text) return;
+        
+        // If there is no text AND no file staged, do nothing
+        if (!text && !stagedFile) return;
 
+        const mainSendBtn = document.querySelector('button[onclick="sendAdminMessage()"]');
+        const sendIcon = mainSendBtn.querySelector('i');
+        
         input.disabled = true;
+        mainSendBtn.disabled = true;
+        sendIcon.classList.remove('fa-paper-plane');
+        sendIcon.classList.add('fa-spinner', 'fa-spin');
 
         // Optimistic UI update
         const container = document.getElementById('chat-container');
         const tempId = Date.now();
-        const time = new Date().toLocaleString('es-CR', { hour: '2-digit', minute: '2-digit', hour12: true });
+        
+        let optimisticContent = escapeHTML(text);
+        if (stagedFile) {
+            optimisticContent = `<i class="fa-solid fa-file"></i> Archivo: ${stagedFile.name}<br>${optimisticContent}`;
+        }
+        
         const pendingHtml = `
             <div id="msg-${tempId}" style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 10px; opacity: 0.7;">
                 <div style="background: #007bff; color: white; padding: 8px 12px; border-radius: 12px; max-width: 70%; word-wrap: break-word; border: 1px solid #dee2e6;">
-                    ${escapeHTML(text)}
+                    ${optimisticContent}
                 </div>
                 <small style="color: #999; font-size: 0.75em; margin-top: 2px;">Enviando... - Administrador</small>
             </div>
         `;
         container.insertAdjacentHTML('beforeend', pendingHtml);
         container.scrollTop = container.scrollHeight;
-        input.value = '';
-
+        
         const api = new ApiClient();
+        
         try {
-            await api.post(`/chat/${currentChatPhone}/admin_send`, {
-                content: text,
-                message_type: "text"
-            });
-            // Reload cleanly
+            if (stagedFile) {
+                // FLOW: TEXT + FILE (or just FILE)
+                const formData = new FormData();
+                formData.append('file', stagedFile);
+                if (text) {
+                    formData.append('caption', text);
+                }
+                
+                const token = localStorage.getItem('access_token');
+                const response = await fetch(`${api.baseUrl}/chat/${currentChatPhone}/media`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Error al subir archivo a Meta');
+                }
+                showToast('Archivo enviado exitosamente', 'success');
+            } else {
+                // FLOW: PLAIN TEXT
+                await api.post(`/chat/${currentChatPhone}/admin_send`, {
+                    content: text,
+                    message_type: "text"
+                });
+            }
+            
+            // Success Reset
+            input.value = '';
+            clearStagedFile();
             await loadChatHistory();
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-            }, 100);
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+            
         } catch (e) {
             console.error(e);
             let errorMsg = 'Error al enviar mensaje';
-            if (e && e.detail) {
-                errorMsg = e.detail;
-            } else if (e && e.message) {
-                errorMsg = e.message;
-            }
+            if (e && e.detail) errorMsg = e.detail;
+            else if (e && e.message) errorMsg = e.message;
+            
             showToast(errorMsg, 'error');
             const el = document.getElementById(`msg-${tempId}`);
-            if (el) el.innerHTML = el.innerHTML.replace('Enviando...', `<span style="color:red;" title="${errorMsg}">Error (WhatsApp declinó)</span>`);
+            if (el) el.innerHTML = el.innerHTML.replace('Enviando...', `<span style="color:red;" title="${errorMsg}">Error (Meta declinó)</span>`);
         } finally {
             input.disabled = false;
+            mainSendBtn.disabled = false;
+            sendIcon.classList.remove('fa-spinner', 'fa-spin');
+            sendIcon.classList.add('fa-paper-plane');
             input.focus();
         }
     }
