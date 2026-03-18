@@ -20,10 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     with op.batch_alter_table('customers', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('notes', sa.Text(), nullable=True))
         batch_op.add_column(sa.Column('marketing_opt_in', sa.Boolean(), server_default='1', nullable=True))
 
 def downgrade() -> None:
     with op.batch_alter_table('customers', schema=None) as batch_op:
         batch_op.drop_column('marketing_opt_in')
-        batch_op.drop_column('notes')
