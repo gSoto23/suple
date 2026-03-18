@@ -21,6 +21,7 @@ class Customer(Base):
     training_days = Column(Integer, nullable=True)
     age = Column(Integer, nullable=True)
     medical_data = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
     
     # Marketing Opt-out status
     marketing_opt_in = Column(Boolean, default=True)
