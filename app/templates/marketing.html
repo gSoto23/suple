@@ -307,29 +307,49 @@
 
         template.components.forEach(comp => {
             const type = comp.type.toLowerCase();
-            if (['header', 'body'].includes(type) && comp.text) {
-                // Find {{1}}, {{2}} etc
-                const matches = comp.text.match(/\{\{(\d+)\}\}/g);
-                if (matches) {
-                    hasVariables = true;
-                    // Sort numerically just in case
-                    const uniqMatches = [...new Set(matches)].sort((a,b) => parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]));
-                    
-                    uniqMatches.forEach(match => {
-                        const index = match.match(/\d+/)[0];
-                        const mapKey = `${type}_${index}`;
+            if (['header', 'body'].includes(type)) {
+                if (comp.text) {
+                    // Find {{1}}, {{2}} etc
+                    const matches = comp.text.match(/\{\{(\d+)\}\}/g);
+                    if (matches) {
+                        hasVariables = true;
+                        // Sort numerically just in case
+                        const uniqMatches = [...new Set(matches)].sort((a,b) => parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]));
                         
-                        htmlLines += `
+                        uniqMatches.forEach(match => {
+                            const index = match.match(/\d+/)[0];
+                            const mapKey = `${type}_${index}`;
+                            
+                            htmlLines += `
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                    <span style="font-weight: bold; width: 120px;">[${type.toUpperCase()}] ${match}</span>
+                                    <i class="fa-solid fa-arrow-right" style="color: #999;"></i>
+                                    <select name="var_${mapKey}" required style="flex: 1; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+                                        <option value="">-- Asignar Campo --</option>
+                                        ${customerFields.map(f => `<option value="${f.value}">${f.label}</option>`).join('')}
+                                    </select>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+                
+                if (type === 'header' && comp.format === 'IMAGE') {
+                    hasVariables = true;
+                    htmlLines += `
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc;">
+                            <span style="font-weight: bold;">[HEADER] Imagen (Sube o Pega URL)</span>
                             <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                                <span style="font-weight: bold; width: 120px;">[${type.toUpperCase()}] ${match}</span>
-                                <i class="fa-solid fa-arrow-right" style="color: #999;"></i>
-                                <select name="var_${mapKey}" required style="flex: 1; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
-                                    <option value="">-- Asignar Campo --</option>
-                                    ${customerFields.map(f => `<option value="${f.value}">${f.label}</option>`).join('')}
-                                </select>
+                                <span style="font-size: 0.9em; width: 60px;">Subir:</span>
+                                <input type="file" id="var_header_image_file" accept="image/*" style="flex: 1; padding: 0.4rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
                             </div>
-                        `;
-                    });
+                            <div style="text-align: center; font-size: 0.8em; color: #666;">- Ó -</div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                <span style="font-size: 0.9em; width: 60px;">URL:</span>
+                                <input type="url" name="var_header_image" id="var_header_image_url" placeholder="https://ejemplo.com/imagen.jpg" style="flex: 1; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+                            </div>
+                        </div>
+                    `;
                 }
             }
         });
@@ -352,6 +372,52 @@
     }
     document.getElementById('campaign-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        
+        const fileInput = document.getElementById('var_header_image_file');
+        const urlInput = document.getElementById('var_header_image_url');
+        
+        if (fileInput && fileInput.files.length > 0) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo imagen...';
+            try {
+                const uploadData = new FormData();
+                uploadData.append('file', fileInput.files[0]);
+                
+                const token = localStorage.getItem('token');
+                const root = window.APP_ROOT || '';
+                const cleanRoot = root.endsWith('/') ? root.slice(0, -1) : root;
+                
+                const res = await fetch(`${cleanRoot}/api/v1/chat/upload`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: uploadData
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Error al subir imagen");
+                }
+                const jsonRes = await res.json();
+                
+                // Meta API requires absolute URLs
+                if (jsonRes.url.startsWith('/')) {
+                    urlInput.value = window.location.origin + jsonRes.url;
+                } else {
+                    urlInput.value = jsonRes.url;
+                }
+            } catch(err) {
+                showToast(err.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                return;
+            }
+        } else if (fileInput && urlInput && !urlInput.value) {
+            showToast("Debes subir una imagen o proveer una URL pública", 'error');
+            return;
+        }
+
         const formData = new FormData(e.target);
         const data = {
             name: formData.get('name'),
@@ -367,6 +433,9 @@
             }
         }
         
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
         try {
             const api = new ApiClient();
             const newCampaign = await api.post('/marketing/campaigns', data);
@@ -376,6 +445,9 @@
             openCampaignManageModal(newCampaign.id, newCampaign.status);
         } catch(e) {
             showToast('Error al crear campaña: ' + (e.detail || e.message), 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
         }
     });
 

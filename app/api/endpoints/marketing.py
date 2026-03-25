@@ -254,6 +254,23 @@ async def execute_campaign(
                     comp_type = comp.get("type", "").lower()
                     if comp_type not in ["header", "body"]: continue
                     
+                    # Handle IMAGE format for headers
+                    if comp_type == "header" and comp.get("format", "").upper() == "IMAGE":
+                        image_url = mapping.get("header_image")
+                        if image_url:
+                            final_components.append({
+                                "type": "header",
+                                "parameters": [
+                                    {
+                                        "type": "image",
+                                        "image": {
+                                            "link": image_url
+                                        }
+                                    }
+                                ]
+                            })
+                        continue
+
                     # If the template component has text with {{#}} it means it needs parameters.
                     # We will simplify by building the 'parameters' array if mapping provides values for this type.
                     # Since we store our custom mapping keyed by e.g "body_1", "body_2"
