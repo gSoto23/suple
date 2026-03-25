@@ -230,6 +230,10 @@ Pega el siguiente contenido (reemplaza `tu-dominio.com` o la IP pública):
 server {
     listen 80;
     server_name gscodecr.com www.gscodecr.com;
+    
+    # Permitir subir archivos más grandes (ej. 50MB)
+    client_max_body_size 50M;
+
     # ------------------------------------------------------------------
     # 1. Sitio Estático (Gscode) -> Raíz /
     # ------------------------------------------------------------------
