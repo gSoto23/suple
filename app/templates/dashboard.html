@@ -183,11 +183,14 @@
 
     const statusMap = {
         'created': 'Creada',
-        'pending_payment': 'Analisis de Pago',
+        'pending_payment': 'Análisis de Pago',
+        'awaiting_receipt_confirmation': 'Esperando Comprobante',
         'paid': 'Pagado',
         'shipped': 'Enviado',
         'delivered': 'Entregado',
-        'cancelled': 'Cancelado'
+        'completed': 'Completado',
+        'cancelled': 'Cancelado',
+        'refunded': 'Reembolsado'
     };
 
     async function loadDashboard() {
@@ -221,7 +224,7 @@
                         <td>#${order.id}</td>
                         <td>${order.customer ? order.customer.full_name : 'N/A'}</td>
                         <td>${window.APP_CONFIG.currency} ${parseFloat(order.total_amount).toLocaleString()}</td>
-                        <td><span class="badge ${order.status}">${statusMap[order.status] || order.status}</span></td>
+                        <td><span class="badge ${order.status.toLowerCase()}">${statusMap[order.status.toLowerCase()] || order.status}</span></td>
                         <td>${formatDateCR(order.created_at)}</td>
                         <td>
                             <button class="btn btn-sm btn-table-action" onclick="openOrderModal(${order.id})">Ver</button>
@@ -257,7 +260,7 @@
             statusSelect.innerHTML = Object.entries(statusMap).map(([key, label]) =>
                 `<option value="${key}">${label}</option>`
             ).join('');
-            statusSelect.value = order.status;
+            statusSelect.value = order.status.toLowerCase();
 
             const paymentSelect = document.getElementById('modal-payment-method');
             paymentSelect.value = order.payment_method || '';

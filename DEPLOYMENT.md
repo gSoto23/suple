@@ -125,9 +125,10 @@ Crea el archivo `.env` de producción.
 cp .env.example .env
 nano .env
 ```
-Edita los valores, especialmente:
-- `DATABASE_URL`: Si usas SQLite local, `sqlite+aiosqlite:////var/www/suplementos/suplementos.db` (nota las 4 barras para ruta absoluta). Si usas PostgreSQL (recomendado), pon la URL de conexión.
-- `SECRET_KEY`: Genera una clave segura.
+Edita los valores en producción, esto es **ESTRICTAMENTE NECESARIO** porque la aplicación no tiene valores inseguros por defecto:
+- `SECRET_KEY`: Genera una clave segura. (Ej. `openssl rand -hex 32`)
+- `DATABASE_URL`: Si usas SQLite local, `sqlite+aiosqlite:////var/www/suplementos/suplementos.db` (nota las 4 barras para ruta absoluta). Si usas PostgreSQL (recomendado), pon tu URL de conexión (`postgres://...`).
+*(Nota: El sistema automáticamente convertirá URLs crudas `postgres://` a `postgresql+asyncpg://` a nivel configuración interno).*
 
 ### 3.4 Configurar Base de Datos
 
@@ -142,11 +143,12 @@ Ideal para prototipos o bajo tráfico. No requiere instalación extra.
    *(Nota: Son 4 barras `/` al inicio para indicar ruta absoluta)*
 
 #### Opción B: AWS Managed Database (PostgreSQL) - *Recomendado para Prod*
-1. Crea la DB en la consola de Lightsail (Pestaña Databases).
-2. Copia el Endpoint, Usuario y Password.
+1. Crea la DB en la consola de Lightsail (Pestaña Databases) u otro proveedor como Supabase.
+2. Copia la URL pública (Endpoint, Usuario y Password).
 3. Actualiza tu `.env`:
    ```bash
-   DATABASE_URL=postgresql+asyncpg://dbmasteruser:password@ls-xxx.region.rds.amazonaws.com:5432/dbmaster
+   # Puedes pegar la URL cruda que te dan, el app usa un validator automático para asyncpg.
+   DATABASE_URL="postgres://dbmasteruser:password@ls-xxx.region.rds.amazonaws.com:5432/dbmaster"
    ```
 
 #### Opción C: PostgreSQL Local (Self-Hosted)
@@ -166,7 +168,7 @@ Si deseas PostgreSQL sin pagar extra por el servicio gestionado:
    ```
 3. **Actualizar .env**:
    ```bash
-   DATABASE_URL=postgresql+asyncpg://suplementosuser:tu_password@localhost/suplementosdb
+   DATABASE_URL="postgresql+asyncpg://suplementosuser:tu_password@localhost/suplementosdb"
    ```
 
 ### 3.5 Inicializar Base de Datos

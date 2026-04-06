@@ -20,6 +20,7 @@ class Product(Base):
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    custom_fields = Column(JSON, default=dict)
 
     inventory_movements = relationship("InventoryMovement", back_populates="product")
     order_items = relationship("OrderItem", back_populates="product")
@@ -40,15 +41,15 @@ class InventoryMovement(Base):
     product = relationship("Product", back_populates="inventory_movements")
     created_by = relationship("User")
 
-class InventoryConfig(Base):
-    __tablename__ = "inventory_config"
-
+class ProductFieldDefinition(Base):
+    __tablename__ = "product_field_definitions"
+    
     id = Column(Integer, primary_key=True, index=True)
-    business_name = Column(String, default="Mi Negocio")
-    store_addresses = Column(JSON, default=list) 
-    account_number = Column(String, nullable=True)
-    sinpe_number = Column(String, nullable=True)
-    customer_service_phone = Column(String, nullable=True)
-    subscription_discount_percentage = Column(Numeric(5, 2), default=0.0)
-    min_subscription_duration_days = Column(Integer, default=0)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    name = Column(String, unique=True, index=True, nullable=False) # e.g. "Sabor", "Talla"
+    field_type = Column(String, nullable=False) # "text", "number", "select"
+    options = Column(JSON, default=list) # e.g. ["Vainilla", "Chocolate"] if type is "select"
+    is_required = Column(Boolean, default=False)
+    order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+

@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Any
+from pydantic import validator
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Suplementos Admin"
@@ -10,13 +11,22 @@ class Settings(BaseSettings):
     COMPANY_ICON_CLASS: str = "fa-solid fa-dumbbell"
     
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str = "changethis"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     
-    DATABASE_URL: str = "sqlite+aiosqlite:///./suplementos.db"
+    DATABASE_URL: str
     
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:8000", "http://localhost:3000"]
+    @validator("DATABASE_URL", pre=True)
+    def assemble_db_connection(cls, v: str | Any) -> str:
+        if isinstance(v, str):
+            if v.startswith("postgres://"):
+                return v.replace("postgres://", "postgresql+asyncpg://", 1)
+            if v.startswith("postgresql://"):
+                return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+    
+    BACKEND_CORS_ORIGINS: List[str] = ["*"]
 
     # WhatsApp - Strictly Required without defaults
     WHATSAPP_ACCESS_TOKEN: str

@@ -7,15 +7,17 @@ Internal administrative portal for managing supplements inventory, customers, pr
 - **Product & Inventory Management**: 
   - Administer Supplements catalog.
   - Stock tracking globally.
-  - Configurable Subscription Discount parameters globally.
-- **Customer & Subscription CRM**: 
+  - **Dynamic Product Fields (JSON)**: Create completely custom schema-less attributes (e.g., Size, Flavor, Color) managed entirely from the UI, making the catalog adaptable to any e-commerce vertical.
+- **Customer & Subscription CRM** (Toggleable feature):
   - Manage customers, their objective profiles, and medical notes.
-  - Full subscription engine allowing creation of automated fulfillment schedules (pre-filled with required discounts and duration targets).
+  - Full subscription engine allowing creation of automated fulfillment schedules.
   - Order history tracking and active lifecycle overview per customer.
 - **Order Management (POS)**: 
   - Create orders, calculate cart prices manually.
 - **AI Automation Integration (n8n Hybrid)**: 
   - Secure `/chat/send_message` API endpoint for the n8n AI agent to request WhatsApp deliveries on behalf of the CRM.
+- **System Configuration (SaaS Ready)**:
+  - Global UI Dashboard to manage App toggles (Subscriptions, Marketing) via Database instead of static `.env` flags.
 - **Role-Based Access Control**: 
   - Secure login with JWT Authentication.
   - Admin roles and config panels.
@@ -57,12 +59,13 @@ Internal administrative portal for managing supplements inventory, customers, pr
    
    - **Option A: SQLite (Default / Local Dev)**
      ```bash
-     DATABASE_URL=sqlite+aiosqlite:///./suplementos.db
+     DATABASE_URL="sqlite+aiosqlite:///./suplementos.db"
      ```
    
-   - **Option B: AWS Lightsail Managed Database (PostgreSQL - Production)**
+   - **Option B: Managed Database (PostgreSQL - Production)**
      ```bash
-     DATABASE_URL=postgresql+asyncpg://dbmasteruser:password@ls-xxx.region.rds.amazonaws.com:5432/dbmaster
+     # Standard URL (The app will automatically map this to the asyncpg driver)
+     DATABASE_URL="postgres://dbmasteruser:password@hostname:5432/dbmaster"
      ```
 
 5. **Run Migrations**

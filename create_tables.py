@@ -1,9 +1,7 @@
 import asyncio
 from app.core.database import engine, Base
 # Import all models so they register with Base
-from app.models.marketing import MarketingTemplate, Campaign, CampaignRecipient
-from app.models.customers import Customer
-from app.models.users import User
+from app import models
 
 async def create_tables():
     async with engine.begin() as conn:

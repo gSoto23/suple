@@ -18,7 +18,9 @@
                 <tr>
                     <th onclick="sortTable(0, 'customers-table')">Teléfono (ID) <i class="fa-solid fa-sort"></i></th>
                     <th onclick="sortTable(1, 'customers-table')">Nombre <i class="fa-solid fa-sort"></i></th>
+                    {% if system_config.enable_subscriptions %}
                     <th onclick="sortTable(2, 'customers-table')">Suscripciones <i class="fa-solid fa-sort"></i></th>
+                    {% endif %}
                     <th onclick="sortTable(3, 'customers-table')">Email <i class="fa-solid fa-sort"></i></th>
                     <th onclick="sortTable(4, 'customers-table')">Dirección <i class="fa-solid fa-sort"></i></th>
                     <th onclick="sortTable(5, 'customers-table')">Método Pago <i class="fa-solid fa-sort"></i></th>
@@ -161,6 +163,7 @@
                 </form>
 
                 <!-- Middle Section: Subscriptions -->
+                {% if system_config.enable_subscriptions %}
                 <div id="subscriptions-section"
                     style="border-top: 1px solid var(--color-border); padding-top: 20px; margin-bottom: 20px;">
                     <div
@@ -186,6 +189,7 @@
                         </table>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Bottom Section: Order History (Full Width) -->
                 <div id="order-history-section" style="border-top: 1px solid var(--color-border); padding-top: 20px;">
@@ -342,6 +346,7 @@
 </div>
 
 <script>
+    const isSubscriptionsEnabled = {{ 'true' if system_config.enable_subscriptions else 'false' }};
     let isCreating = false;
 
     const statusMap = {
@@ -385,16 +390,20 @@
         try {
             const customers = await api.get('/customers/');
             const tbody = document.querySelector('#customers-table tbody');
-            tbody.innerHTML = customers.map(c => `
+            tbody.innerHTML = customers.map(c => {
+                let subsHtml = '';
+                if (isSubscriptionsEnabled) {
+                    const badges = (c.subscriptions && c.subscriptions.length > 0)
+                        ? c.subscriptions.map(s => `<span class="badge" style="background:var(--color-primary); color:white; margin-right:4px;">Sub #${s.id}</span>`).join('')
+                        : '<span style="color: #999;">-</span>';
+                    subsHtml = `<td>${badges}</td>`;
+                }
+
+                return `
                 <tr>
                     <td><strong>${escapeHTML(c.phone) || '-'}</strong></td>
                     <td>${escapeHTML(c.full_name)}</td>
-                    <td>
-                        ${c.subscriptions && c.subscriptions.length > 0
-                    ? c.subscriptions.map(s => `<span class="badge" style="background:var(--color-primary); color:white; margin-right:4px;">Sub #${s.id}</span>`).join('')
-                    : '<span style="color: #999;">-</span>'
-                }
-                    </td>
+                    ${subsHtml}
                     <td>${escapeHTML(c.email) || '-'}</td>
                     <td>${escapeHTML(c.address) || '-'}</td>
                     <td>${escapeHTML(c.default_payment_method) || '-'}</td>
@@ -404,7 +413,8 @@
                         <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${escapeHTML(c.phone)}', '${escapeHTML(c.full_name)}')" style="margin-left: 5px;"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
         } catch (e) {
             console.error(e);
         }
@@ -482,6 +492,7 @@
 
     function renderCustomerSubscriptions(subs) {
         const tbody = document.querySelector('#customer-subscriptions-table tbody');
+        if (!tbody) return; // Prevent crash if element is conditionally hidden
         if (!subs || subs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No tiene suscripciones activas</td></tr>';
             return;
