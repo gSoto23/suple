@@ -601,7 +601,9 @@ body.login-page .content-wrapper {
 
 .badge.warning,
 .badge.created,
-.badge.Bajo {
+.badge.bajo,
+.badge.Bajo,
+.badge.awaiting_receipt_confirmation {
     background-color: var(--color-warning);
     color: var(--color-warning-text);
 }

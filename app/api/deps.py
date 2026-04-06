@@ -54,3 +54,19 @@ async def get_current_active_admin(
             status_code=400, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+from app.models.system import SystemConfig
+
+async def check_subscriptions_enabled(db: Annotated[AsyncSession, Depends(get_db)]):
+    result = await db.execute(select(SystemConfig).limit(1))
+    config = result.scalars().first()
+    if config and not config.enable_subscriptions:
+        raise HTTPException(status_code=403, detail="El módulo de suscripciones está deshabilitado en la configuración del sistema.")
+    return True
+
+async def check_marketing_enabled(db: Annotated[AsyncSession, Depends(get_db)]):
+    result = await db.execute(select(SystemConfig).limit(1))
+    config = result.scalars().first()
+    if config and not config.enable_marketing:
+        raise HTTPException(status_code=403, detail="El módulo de marketing está deshabilitado en la configuración del sistema.")
+    return True

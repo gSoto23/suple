@@ -306,9 +306,12 @@
 
     const statusMap = {
         'created': 'Creado',
-        'pending_payment': 'Analisis de Pago',
+        'pending_payment': 'Análisis de Pago',
+        'awaiting_receipt_confirmation': 'Esperando Comprobante',
         'paid': 'Pagado',
-        'completed': 'Entregado',
+        'shipped': 'Enviado',
+        'delivered': 'Entregado',
+        'completed': 'Completado',
         'cancelled': 'Cancelado',
         'refunded': 'Reembolsado'
     };
@@ -525,7 +528,7 @@
                     <td>${o.customer ? escapeHTML(o.customer.full_name) : 'N/A'}</td>
                     <td>${window.APP_CONFIG.currency} ${parseFloat(o.total_amount).toLocaleString()}</td>
                     <td>${o.payment_method ? escapeHTML(o.payment_method) : '-'}</td>
-                    <td><span class="badge ${o.status}">${statusMap[o.status] || escapeHTML(o.status)}</span></td>
+                    <td><span class="badge ${o.status.toLowerCase()}">${statusMap[o.status.toLowerCase()] || escapeHTML(o.status)}</span></td>
                     <td>${formatDateCR(o.created_at)}</td>
                     <td style="text-align: center; vertical-align: middle;">${o.has_payment_receipt ? `<a href="#" onclick="event.preventDefault(); openReceiptModal(${o.id}, '${o.payment_receipt_url}', '${o.customer ? o.customer.phone : ''}', '${o.customer ? o.customer.full_name : ''}');" style="color:var(--color-primary); font-size: 1.2rem;" title="Ver Comprobante"><i class="fa-solid fa-file-invoice"></i></a>` : '-'}</td>
                     <td>
@@ -556,7 +559,7 @@
             statusSelect.innerHTML = Object.entries(statusMap).map(([key, label]) =>
                 `<option value="${key}">${label}</option>`
             ).join('');
-            statusSelect.value = order.status;
+            statusSelect.value = order.status.toLowerCase();
 
             // Payment Method Select
             const paymentSelect = document.getElementById('modal-payment-method');

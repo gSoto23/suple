@@ -5,12 +5,10 @@
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h3>Inventario</h3>
         <div class="page-header-actions" style="display: flex; gap: 10px;">
-            <button class="btn btn-secondary" onclick="openConfigModal()"><i class="fa-solid fa-cog"></i>
-                Config</button>
-            <button class="btn btn-warning" onclick="exportJSON()"><i class="fa-solid fa-download"></i>
-                Exportar</button>
-            <button class="btn btn-danger" onclick="triggerImport()"><i class="fa-solid fa-upload"></i>
-                Importar</button>
+            <button class="btn btn-secondary" onclick="openConfigModal()"><i class="fa-solid fa-cog"></i> Config</button>
+            <button class="btn btn-info" onclick="openFieldsModal()"><i class="fa-solid fa-list-check"></i> Campos Dinámicos</button>
+            <button class="btn btn-warning" onclick="exportJSON()"><i class="fa-solid fa-download"></i> Exportar</button>
+            <button class="btn btn-danger" onclick="triggerImport()"><i class="fa-solid fa-upload"></i> Importar</button>
             <button class="btn btn-table-action" onclick="openCreateProductModal()">Nuevo Producto</button>
         </div>
     </div>
@@ -70,12 +68,24 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 1rem;">
-                    <div class="form-group" style="flex: 1;">
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; padding: 1rem; background: #f9f9f9; border-radius: 8px;">
+                    <strong style="margin-right: 15px;">Módulos del Sistema:</strong>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="config-enable-subs" style="width: 18px; height: 18px;">
+                        <label for="config-enable-subs" style="margin: 0; cursor: pointer;">Habilitar Suscripciones</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; margin-left: 20px;">
+                        <input type="checkbox" id="config-enable-mkt" style="width: 18px; height: 18px;">
+                        <label for="config-enable-mkt" style="margin: 0; cursor: pointer;">Habilitar Marketing & WhatsApp</label>
+                    </div>
+                </div>
+
+                <div id="config-sub-fields-container" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label>Descuento x Suscripción (%)</label>
                         <input type="number" step="0.01" id="config-sub-discount" placeholder="Ej: 15.00">
                     </div>
-                    <div class="form-group" style="flex: 1;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label>Contrato Mínimo (Días)</label>
                         <input type="number" id="config-sub-min-duration" placeholder="Ej: 90">
                     </div>
@@ -169,12 +179,78 @@
                     </select>
                 </div>
 
+                <div id="custom-fields-container" style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px;">
+                   <!-- dynamic fields here -->
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn" onclick="closeProductModal()"
                         style="background-color: #ccc;">Cancelar</button>
                     <button type="submit" class="btn btn-table-action">Guardar</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Product Fields Modal -->
+    <div id="fields-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Administrar Campos Dinámicos</h3>
+                <button onclick="closeFieldsModal()" class="modal-close">&times;</button>
+            </div>
+            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 1.5rem;">
+                <h4 style="margin-top: 0; color: var(--color-primary); margin-bottom: 1rem;"><i class="fa-solid fa-plus-circle"></i> Nuevo Campo</h4>
+                
+                <div style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
+                        <label style="font-weight: 500;">Nombre <small>(Ej: Sabor, Talla)</small></label>
+                        <input type="text" id="new-field-name" placeholder="Escriba el nombre" style="padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; width: 100%;">
+                    </div>
+                    
+                    <div class="form-group" style="flex: 1; min-width: 150px; margin: 0;">
+                        <label style="font-weight: 500;">Tipo de Dato</label>
+                        <select id="new-field-type" style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; background: white;">
+                            <option value="text">Texto Corto</option>
+                            <option value="number">Número</option>
+                            <option value="select">Lista de Selección</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; align-self: flex-start; margin-top: 2rem; gap: 8px; min-width: 100px;">
+                        <input type="checkbox" id="new-field-required" style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                        <label for="new-field-required" style="margin: 0; cursor: pointer; font-weight: 500;">Requerido</label>
+                    </div>
+                </div>
+                
+                <div id="new-field-options-container" class="form-group" style="display: none; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                    <label style="font-weight: 500;">Opciones Disponibles <small style="color:#666;">(Separadas por coma)</small></label>
+                    <input type="text" id="new-field-options" placeholder="Ejemplo: Vainilla, Chocolate, Fresa" style="padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; width: 100%;">
+                </div>
+                
+                <div style="margin-top: 15px; justify-content: flex-end; display: flex;">
+                    <button type="button" class="btn btn-table-action" onclick="createFieldDef()">
+                        <i class="fa-solid fa-save"></i> Agregar Campo
+                    </button>
+                </div>
+            </div>
+            
+            <h4 style="margin-bottom: 1rem; color: var(--color-text);"><i class="fa-solid fa-list-ul"></i> Campos Implementados</h4>
+            <div class="table-responsive" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px;">
+                <table class="table" id="fields-table" style="margin-bottom: 0;">
+                    <thead style="background: #f8f9fa;">
+                        <tr>
+                            <th style="color: var(--color-text); border-bottom: 2px solid #dee2e6;">Nombre</th>
+                            <th style="color: var(--color-text); border-bottom: 2px solid #dee2e6;">Tipo</th>
+                            <th style="color: var(--color-text); border-bottom: 2px solid #dee2e6;">Requerido</th>
+                            <th style="color: var(--color-text); border-bottom: 2px solid #dee2e6;">Opciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -190,17 +266,16 @@
         async function loadProducts() {
             const api = new ApiClient();
             try {
-                // Now returns { inventory: [], config: {} }
-                const response = await api.get('/products/');
-
-                // Handle new structure or fallback if deployed backend not updated yet (safety)
-                let products = [];
-                if (Array.isArray(response)) {
-                    products = response;
-                } else if (response.inventory) {
-                    products = response.inventory;
-                    globalConfig = response.config || {};
+                // Fetch config
+                try {
+                     globalConfig = await api.get('/config/');
+                } catch (e) {
+                     console.error('Error fetching config', e);
+                     globalConfig = {};
                 }
+                
+                const response = await api.get('/products/');
+                let products = Array.isArray(response) ? response : [];
 
                 const tbody = document.querySelector('#products-table tbody');
                 tbody.innerHTML = products.map(p => {
@@ -250,6 +325,10 @@
             document.getElementById('config-phone').value = globalConfig.customer_service_phone || '';
             document.getElementById('config-sub-discount').value = globalConfig.subscription_discount_percentage || 0;
             document.getElementById('config-sub-min-duration').value = globalConfig.min_subscription_duration_days || 0;
+            document.getElementById('config-enable-subs').checked = globalConfig.enable_subscriptions !== false;
+            document.getElementById('config-enable-mkt').checked = globalConfig.enable_marketing !== false;
+            
+            toggleSubConfigFields();
 
             // Addresses
             const container = document.getElementById('address-container');
@@ -311,12 +390,14 @@
                 customer_service_phone: document.getElementById('config-phone').value,
                 subscription_discount_percentage: parseFloat(document.getElementById('config-sub-discount').value) || 0,
                 min_subscription_duration_days: parseInt(document.getElementById('config-sub-min-duration').value) || 0,
+                enable_subscriptions: document.getElementById('config-enable-subs').checked,
+                enable_marketing: document.getElementById('config-enable-mkt').checked,
                 store_addresses: addresses
             };
 
             const api = new ApiClient();
             try {
-                const updatedConfig = await api.put('/products/config', configData);
+                const updatedConfig = await api.put('/config/', configData);
                 globalConfig = updatedConfig;
                 showToast('Configuración guardada correctamente', 'success');
                 closeConfigModal();
@@ -328,15 +409,28 @@
 
         // --- End Config Functions ---
 
+        document.getElementById('config-enable-subs').addEventListener('change', toggleSubConfigFields);
+
+        function toggleSubConfigFields() {
+            const isEnabled = document.getElementById('config-enable-subs').checked;
+            const container = document.getElementById('config-sub-fields-container');
+            if (isEnabled) {
+                container.style.display = 'flex';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
         // Modal Functions
-        function openCreateProductModal() {
+        async function openCreateProductModal() {
             isEditing = false;
             document.getElementById('modal-title').innerText = 'Nuevo Producto';
             document.getElementById('product-form').reset();
             document.getElementById('product-id').value = '';
             document.getElementById('product-sku').readOnly = false; // Allow SKU edit on create
             document.getElementById('product-active').value = 'true'; // Default active
-
+            
+            await renderCustomFieldsForm({});
             document.getElementById('product-modal').style.display = 'flex';
         }
 
@@ -362,7 +456,7 @@
                 document.getElementById('product-description').value = p.description || '';
                 document.getElementById('product-active').value = (p.is_active !== undefined ? p.is_active : true).toString();
 
-                // Removed checkboxes hydration
+                await renderCustomFieldsForm(p.custom_fields || {});
 
                 document.getElementById('product-modal').style.display = 'flex';
             } catch (e) {
@@ -377,6 +471,14 @@
         document.getElementById('product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const customFieldsInputs = document.querySelectorAll('.custom-field-input');
+            const custom_fields_data = {};
+            customFieldsInputs.forEach(input => {
+                if (input.value !== '') {
+                     custom_fields_data[input.dataset.name] = input.value;
+                }
+            });
+
             const data = {
                 sku: document.getElementById('product-sku').value,
                 name: document.getElementById('product-name').value,
@@ -387,7 +489,8 @@
                 min_stock: parseInt(document.getElementById('product-min-stock').value),
                 image_url: document.getElementById('product-image').value,
                 description: document.getElementById('product-description').value,
-                is_active: document.getElementById('product-active').value === 'true'
+                is_active: document.getElementById('product-active').value === 'true',
+                custom_fields: custom_fields_data
             };
 
             const api = new ApiClient();
@@ -453,6 +556,132 @@
                 input.value = ''; // Reset
             };
             reader.readAsText(file);
+        }
+
+        // --- Custom Fields Functions ---
+        let productFieldsCache = [];
+
+        document.getElementById('new-field-type').addEventListener('change', function(e) {
+            const optionsContainer = document.getElementById('new-field-options-container');
+            if(e.target.value === 'select') {
+                optionsContainer.style.display = 'block';
+            } else {
+                optionsContainer.style.display = 'none';
+            }
+        });
+
+        async function openFieldsModal() {
+            document.getElementById('fields-modal').style.display = 'flex';
+            await loadFieldsTable();
+        }
+
+        function closeFieldsModal() {
+            document.getElementById('fields-modal').style.display = 'none';
+        }
+
+        async function loadProductFieldsDefs() {
+            if (productFieldsCache.length > 0) return productFieldsCache;
+            const api = new ApiClient();
+            try {
+                productFieldsCache = await api.get('/products/fields/definitions');
+                return productFieldsCache;
+            } catch (err) {
+                console.error("Error loading field definitions", err);
+                return [];
+            }
+        }
+
+        async function renderCustomFieldsForm(existingData = {}) {
+            const container = document.getElementById('custom-fields-container');
+            container.innerHTML = '<h4 style="margin-bottom: 15px; color: var(--color-primary);">Campos de Producto Extra</h4>';
+            
+            const defs = await loadProductFieldsDefs();
+            if (defs.length === 0) {
+                 container.innerHTML += '<p style="color: #999; font-size: 0.9em;">No hay campos dinámicos definidos.</p>';
+                 return;
+            }
+
+            defs.forEach(def => {
+                const value = existingData[def.name] !== undefined ? existingData[def.name] : '';
+                const requiredAttr = def.is_required ? 'required' : '';
+                
+                let inputHtml = '';
+                if (def.field_type === 'text') {
+                    inputHtml = `<input type="text" class="custom-field-input" data-name="${def.name}" value="${value}" ${requiredAttr}>`;
+                } else if (def.field_type === 'number') {
+                    inputHtml = `<input type="number" step="any" class="custom-field-input" data-name="${def.name}" value="${value}" ${requiredAttr}>`;
+                } else if (def.field_type === 'select') {
+                    const optionsHtml = def.options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join('');
+                    inputHtml = `<select class="custom-field-input" data-name="${def.name}" ${requiredAttr} style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: white;">
+                        <option value="">-- Ninguno --</option>
+                        ${optionsHtml}
+                    </select>`;
+                }
+                
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                group.style.marginBottom = '10px';
+                group.innerHTML = `<label style="font-weight: 500;">${def.name} ${def.is_required ? '<span style="color:red">*</span>' : ''}</label>${inputHtml}`;
+                container.appendChild(group);
+            });
+        }
+
+        async function loadFieldsTable() {
+            const fields = await loadProductFieldsDefs();
+            const tbody = document.querySelector('#fields-table tbody');
+            tbody.innerHTML = fields.map(f => {
+                const isRequired = f.is_required ? '<span style="color:red">Sí</span>' : 'No';
+                const options = f.options && f.options.length > 0 ? f.options.join(', ') : '-';
+                return `<tr>
+                    <td>${f.name}</td>
+                    <td>${f.field_type}</td>
+                    <td>${isRequired}</td>
+                    <td>${options}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function createFieldDef() {
+            const name = document.getElementById('new-field-name').value;
+            const type = document.getElementById('new-field-type').value;
+            const required = document.getElementById('new-field-required').checked;
+            let options = [];
+            
+            if (!name) {
+                showToast('El nombre es obligatorio', 'error');
+                return;
+            }
+
+            if (type === 'select') {
+                const optStr = document.getElementById('new-field-options').value;
+                if (!optStr) {
+                    showToast('Escriba al menos una opción', 'error');
+                    return;
+                }
+                options = optStr.split(',').map(s => s.trim()).filter(s => s !== '');
+            }
+
+            const data = {
+                name: name,
+                field_type: type,
+                is_required: required,
+                options: options
+            };
+
+            const api = new ApiClient();
+            try {
+                await api.post('/products/fields/definitions', data);
+                showToast('Campo añadido', 'success');
+                // Reset form
+                document.getElementById('new-field-name').value = '';
+                document.getElementById('new-field-options').value = '';
+                document.getElementById('new-field-required').checked = false;
+                
+                // Reload
+                await loadFieldsTable();
+            } catch (err) {
+                showToast('Error: ' + (err.detail || err.message), 'error');
+            }
         }
     </script>
     {% endblock %}

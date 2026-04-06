@@ -1,5 +1,5 @@
 from pydantic import BaseModel, condecimal
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class ProductBase(BaseModel):
@@ -14,6 +14,31 @@ class ProductBase(BaseModel):
     is_active: bool = True
     image_url: Optional[str] = None
     description: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = {}
+
+class ProductFieldDefinitionBase(BaseModel):
+    name: str
+    field_type: str
+    options: Optional[List[str]] = []
+    is_required: Optional[bool] = False
+    order: Optional[int] = 0
+
+class ProductFieldDefinitionCreate(ProductFieldDefinitionBase):
+    pass
+
+class ProductFieldDefinitionUpdate(BaseModel):
+    name: Optional[str] = None
+    field_type: Optional[str] = None
+    options: Optional[List[str]] = None
+    is_required: Optional[bool] = None
+    order: Optional[int] = None
+
+class ProductFieldDefinition(ProductFieldDefinitionBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 class ProductCreate(ProductBase):
     pass
@@ -30,6 +55,7 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool] = None
     image_url: Optional[str] = None
     description: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
 class Product(ProductBase):
     id: int
@@ -39,31 +65,6 @@ class Product(ProductBase):
     class Config:
         from_attributes = True
 
-from typing import Dict, Any
-
-# Inventory Config Schemas
-class InventoryConfigBase(BaseModel):
-    business_name: Optional[str] = "Mi Negocio"
-    store_addresses: Optional[List[Dict[str, Any]]] = [] # List of {name, address, map_pin}
-    account_number: Optional[str] = None
-    sinpe_number: Optional[str] = None
-    customer_service_phone: Optional[str] = None
-    subscription_discount_percentage: Optional[float] = 0.0
-    min_subscription_duration_days: Optional[int] = 0
-
-class InventoryConfigCreate(InventoryConfigBase):
-    pass
-
-class InventoryConfigUpdate(InventoryConfigBase):
-    pass
-
-class InventoryConfig(InventoryConfigBase):
-    id: int
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
 class InventoryResponse(BaseModel):
     inventory: List[Product]
-    config: Optional[InventoryConfig] = None
+

@@ -10,7 +10,7 @@ from app.api import deps
 
 router = APIRouter()
 
-@router.get("/", response_model=products.InventoryResponse)
+@router.get("/", response_model=List[products.Product])
 async def read_products(
     db: Annotated[AsyncSession, Depends(get_db)],
     skip: int = 0,
@@ -40,83 +40,22 @@ async def read_products(
     result = await db.execute(query)
     items = result.scalars().all()
 
-    # 2. Fetch Config
-    from app.models.products import InventoryConfig
-    result_config = await db.execute(select(InventoryConfig).limit(1))
-    config = result_config.scalars().first()
-
-    if not config:
-        # Create default config if not exists
-        config = InventoryConfig()
-        db.add(config)
-        await db.commit()
-        await db.refresh(config)
-
-    # 3. Handle fields selection (if applying to inventory items)
-    # The return model is creating a structure, if 'fields' param is used, it might return Dicts instead of Product objects
-    # which Pydantic might complain about if the schema expects Product objects.
-    # However, existing code returned list of dicts if fields was present.
-    # We should probably return items as is, unless fields logic is strictly needed. 
-    # If fields is supported, we might need a dynamic schema or return dict. 
-    # Current implementation of 'fields' returns List[dict]. 
-    # InventoryResponse expects List[Product]. 
-    # If we return dicts, validation might fail or filtering happen.
-    # Let's keep items as ORM objects for now to satisfy List[Product], 
-    # OR if fields is requested, we construct the list of dicts. 
-    # But InventoryResponse.inventory is List[Product]. 
-    # So if we return dicts, it's fine as long as they match structure.
-    # BUT if we select only subset, it might strictly fail if strictly validated. 
-    # Let's assume standard full return for now or adapt.
-    
     # 3. Handle fields selection (if applying to inventory items)
     inventory_data = items
     if fields:
         field_list = [f.strip() for f in fields.split(',')]
-        # Ensure 'id' is always included if not present, because it's good practice, 
-        # but let's strictly follow request or at least ensure we don't break if id is missing in Pydantic.
-        # Issue: Pydantic model Product requires all fields. 
-        # Solution: Return Response(json) directly to bypass Pydantic wrapper for this case,
-        # OR use a more flexible schema. 
-        # Easiest: Return JSONResponse for filtered content.
         
         inventory_data = [
             {k: getattr(item, k, None) for k in field_list if hasattr(item, k)}
             for item in items
         ]
         
-        # Manually construct response dict to bypass Pydantic 'InventoryResponse' validation validation
-        # which expects full Product objects
         from fastapi.responses import JSONResponse
         from fastapi.encoders import jsonable_encoder
         
-        return JSONResponse(content={
-            "inventory": jsonable_encoder(inventory_data),
-            "config": jsonable_encoder(config)
-        })
+        return JSONResponse(content=jsonable_encoder(inventory_data))
 
-    return {"inventory": inventory_data, "config": config}
-
-@router.put("/config", response_model=products.InventoryConfig)
-async def update_inventory_config(
-    config_in: products.InventoryConfigUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: User = Depends(deps.get_current_active_admin)
-):
-    from app.models.products import InventoryConfig
-    result = await db.execute(select(InventoryConfig).limit(1))
-    config = result.scalars().first()
-    
-    if not config:
-        config = InventoryConfig()
-        db.add(config)
-    
-    update_data = config_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(config, field, value)
-        
-    await db.commit()
-    await db.refresh(config)
-    return config
+    return items
 
 @router.post("/", response_model=products.Product)
 async def create_product(
@@ -229,3 +168,24 @@ async def import_products_json(
             
     await db.commit()
     return {"message": "Import successful", "created": count_created, "updated": count_updated}
+
+@router.get("/fields/definitions", response_model=List[products.ProductFieldDefinition])
+async def get_field_definitions(
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    from app.models.products import ProductFieldDefinition
+    result = await db.execute(select(ProductFieldDefinition).order_by(ProductFieldDefinition.order))
+    return result.scalars().all()
+
+@router.post("/fields/definitions", response_model=products.ProductFieldDefinition)
+async def create_field_definition(
+    field_in: products.ProductFieldDefinitionCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User = Depends(deps.get_current_active_admin)
+):
+    from app.models.products import ProductFieldDefinition
+    db_field = ProductFieldDefinition(**field_in.model_dump())
+    db.add(db_field)
+    await db.commit()
+    await db.refresh(db_field)
+    return db_field

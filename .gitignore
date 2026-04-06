@@ -44,3 +44,12 @@ test_*.py
 
 # IDE
 .vscode/
+
+# Dev Scripts & Misc
+temp*.js
+fix_*.py
+clean_*.py
+add_*.py
+create_tables.py
+test_waba*.py
+*.db

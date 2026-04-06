@@ -55,9 +55,11 @@
                 <li><a href="{{ url_for('service_page') }}"
                         class="{% if '/service' in request.url.path %}active{% endif %}"><i
                             class="fa-solid fa-robot"></i> Servicio al Cliente</a></li>
+                {% if system_config and system_config.enable_marketing %}
                 <li><a href="{{ url_for('marketing_page') }}"
                         class="{% if '/marketing' in request.url.path %}active{% endif %}"><i
                             class="fa-solid fa-bullhorn"></i> Marketing</a></li>
+                {% endif %}
             </ul>
             <div class="user-profile">
                 <span id="user-name">Usuario</span>
