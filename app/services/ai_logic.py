@@ -162,13 +162,10 @@ async def create_order_draft(phone: str, product_sku: str, quantity: int, **kwar
                 status="created"
             )
             db.add(order)
-            await db.commit()
-            await db.refresh(order)
+            await db.flush() # flush to get order.id without committing
         else:
             # Add to existing cart
             order.total_amount = float(order.total_amount) + add_total
-            await db.commit()
-            await db.refresh(order)
             
         # Insert Item
         item = OrderItem(
@@ -229,6 +226,28 @@ async def remove_item_from_cart(phone: str, product_sku: str, **kwargs) -> str:
         
         return f"SUCCESS: Producto {product.name} removido del carrito. Nuevo Total de Orden #{order.id} es: {order.total_amount} CRC."
 
+async def checkout_smart_cart(phone: str, delivery_address: str, payment_method: str, **kwargs) -> str:
+    """Procesa el Check-Out del carrito, adjuntando método de pago local y dirección física."""
+    clean_phone = phone[-8:]
+    async with AsyncSessionLocal() as db:
+        result_c = await db.execute(select(Customer).where(Customer.phone.endswith(clean_phone)))
+        customer = result_c.scalars().first()
+        if not customer:
+            return "Customer not found."
+            
+        result_cart = await db.execute(select(Order).where(Order.customer_id == customer.id).where(Order.status == 'created'))
+        order = result_cart.scalars().first()
+        if not order:
+            return "Error: Este cliente no tiene un pedido abierto para ser completado."
+            
+        order.delivery_address = delivery_address
+        order.payment_method = payment_method
+        order.status = "pending_payment" # Pasa a pendiente de pago validando el checkout
+        
+        await db.commit()
+        
+        return f"SUCCESS: Check-out completado para Orden #{order.id}. Total final: {order.total_amount}. STATUS: pending_payment."
+
 # Tool Mapping dictionary
 AVAILABLE_TOOLS = {
     "get_store_policy": get_store_policy,
@@ -238,7 +257,8 @@ AVAILABLE_TOOLS = {
     "update_customer_profile": update_customer_profile,
     "get_customer_orders": get_customer_orders,
     "create_order_draft": create_order_draft,
-    "remove_item_from_cart": remove_item_from_cart
+    "remove_item_from_cart": remove_item_from_cart,
+    "checkout_smart_cart": checkout_smart_cart
 }
 
 # Define Tool Schemas for Gemini
@@ -311,6 +331,18 @@ gemini_tools = [
                     "product_sku": types.Schema(type="STRING", description="El SKU o nombre exacto del producto a quitar.")
                 },
                 required=["product_sku"]
+            )
+        ),
+        types.FunctionDeclaration(
+            name="checkout_smart_cart",
+            description="CHECKOUT FINAL: Ejecuta esta herramienta para definir adonde enviaremos el paquete y como pagaran, cuando confirmen el checkout total.",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "delivery_address": types.Schema(type="STRING", description="La direccion a enviar extraida de la conversacion."),
+                    "payment_method": types.Schema(type="STRING", description="SINPE, Transferencia, Tarjeta, etc.")
+                },
+                required=["delivery_address", "payment_method"]
             )
         )
     ])
