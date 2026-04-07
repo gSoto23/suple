@@ -175,7 +175,8 @@ async def create_order_draft(phone: str, product_sku: str, quantity: int, **kwar
             order_id=order.id,
             product_id=product.id,
             quantity=quantity,
-            unit_price=product.price
+            unit_price_at_moment=product.price,
+            subtotal=add_total
         )
         db.add(item)
         
