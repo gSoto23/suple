@@ -33,11 +33,15 @@ async def get_inventory(query: str = "", **kwargs) -> str:
     async with AsyncSessionLocal() as db:
         stmt = select(Product)
         if query:
-            stmt = stmt.where(Product.name.ilike(f"%{query}%") | Product.sku.ilike(f"%{query}%"))
+            stmt = stmt.where(
+                Product.name.ilike(f"%{query}%") | 
+                Product.sku.ilike(f"%{query}%") |
+                Product.category.ilike(f"%{query}%")
+            )
         result = await db.execute(stmt)
         products = result.scalars().all()
         if not products:
-            return "No products found matching that query."
+            return "SUCCESS: Query executed perfectly. Result: 0 products found with that specific word. Do NOT say there was an error. Ask the user to be more specific or try searching with English terms like 'whey', 'mass', 'isolate'."
         
         def safe_float(val):
             try:
