@@ -263,7 +263,20 @@
             statusSelect.value = order.status.toLowerCase();
 
             const paymentSelect = document.getElementById('modal-payment-method');
-            paymentSelect.value = order.payment_method || '';
+            const pmValue = order.payment_method || '';
+            let matched = false;
+            for (let i = 0; i < paymentSelect.options.length; i++) {
+                if (paymentSelect.options[i].value.toLowerCase() === pmValue.toLowerCase()) {
+                    paymentSelect.value = paymentSelect.options[i].value;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched && pmValue) {
+                const newOpt = new Option(pmValue, pmValue);
+                paymentSelect.add(newOpt);
+                paymentSelect.value = pmValue;
+            }
 
             // Map items for editing
             currentOrderItems = order.items.map(i => ({
