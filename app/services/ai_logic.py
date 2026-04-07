@@ -214,7 +214,7 @@ async def remove_item_from_cart(phone: str, product_sku: str, **kwargs) -> str:
         # Take the first matched item and destroy it
         item_to_remove = items[0]
         qty_restored = item_to_remove.quantity
-        price_deduced = _safe_float(item_to_remove.unit_price) * qty_restored
+        price_deduced = _safe_float(item_to_remove.unit_price_at_moment) * qty_restored
         
         await db.delete(item_to_remove)
         
