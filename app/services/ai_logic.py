@@ -22,60 +22,116 @@ async def _get_global_config(db: AsyncSession) -> SystemConfig:
     result = await db.execute(select(SystemConfig).limit(1))
     return result.scalars().first()
 
-# --- NATIVE TOOLS ---
-async def get_inventory(query: str = "", **kwargs) -> str:
-    """Read the current store products inventory. Includes name, details, price, SKU, and stock count."""
+# --- ATOMIC NATIVE TOOLS ---
+
+async def get_store_policy(**kwargs) -> str:
+    """Devuelve las políticas de la tienda, métodos de pago, envíos, y garantías."""
+    return (
+        "Políticas de Suplementos CR:\n"
+        "- Envíos: 24h hábiles dentro de GAM. A todo el país por Correos de Costa Rica.\n"
+        "- Pagos: SINPE Móvil, transferencia bancaria, o tarjeta contra entrega en GAM.\n"
+        "- Garantía: No se aceptan devoluciones de suplementos abiertos por medidas de salud."
+    )
+
+def _safe_float(val):
+    try:
+        if val is None or val == "":
+            return 0.0
+        return float(val)
+    except (ValueError, TypeError):
+        return 0.0
+
+async def search_catalog_by_name(query: str, **kwargs) -> str:
+    """Busca productos en el catálogo filtrando explícitamente por nombre o SKU."""
     import unicodedata
-    if query:
-        query = str(query)
-        # Strip accents forcefully so PostgreSQL doesn't fail basic wildcard matching
-        query = "".join(c for c in unicodedata.normalize('NFD', query) if unicodedata.category(c) != 'Mn')
+    query = str(query)
+    query = "".join(c for c in unicodedata.normalize('NFD', query) if unicodedata.category(c) != 'Mn')
+    
     async with AsyncSessionLocal() as db:
-        stmt = select(Product)
-        if query:
-            stmt = stmt.where(
-                Product.name.ilike(f"%{query}%") | 
-                Product.sku.ilike(f"%{query}%") |
-                Product.category.ilike(f"%{query}%")
-            )
+        stmt = select(Product).where(
+            Product.name.ilike(f"%{query}%") | Product.sku.ilike(f"%{query}%")
+        ).where(Product.is_active == True)
         result = await db.execute(stmt)
         products = result.scalars().all()
         if not products:
-            return "SUCCESS: Query executed perfectly. Result: 0 products found with that specific word. Do NOT say there was an error. Ask the user to be more specific or try searching with English terms like 'whey', 'mass', 'isolate'."
+            return f"SUCCESS: 0 productos encontrados con el nombre '{query}'. Pide al cliente que intente otra palabra."
         
-        def safe_float(val):
-            try:
-                if val is None or val == "":
-                    return 0.0
-                return float(val)
-            except (ValueError, TypeError):
-                return 0.0
-                
-        return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": safe_float(p.price), "stock": p.stock, "category": p.category} for p in products])
+        return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": _safe_float(p.price), "stock": p.stock, "category": p.category} for p in products])
 
-async def update_customer_info(phone: str, field: str, value: str, **kwargs) -> str:
-    """Updates a text field in the customer's profile. Fields allowed: full_name, email, medical_notes, lifestyle_notes, objective."""
+async def search_catalog_by_category(category: str, **kwargs) -> str:
+    """Busca productos filtrando exclusivamente por familia/categoría (ej. proteína, creatina, pre-entreno)."""
+    import unicodedata
+    category = str(category)
+    category = "".join(c for c in unicodedata.normalize('NFD', category) if unicodedata.category(c) != 'Mn')
+    
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Customer).where(Customer.phone == phone))
+        stmt = select(Product).where(Product.category.ilike(f"%{category}%")).where(Product.is_active == True)
+        result = await db.execute(stmt)
+        products = result.scalars().all()
+        if not products:
+            return f"SUCCESS: 0 productos encontrados en la categoría '{category}'."
+        
+        return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": _safe_float(p.price), "stock": p.stock, "category": p.category} for p in products])
+
+async def get_customer_profile(phone: str, **kwargs) -> str:
+    """Retorna toda la metadata medica y transaccional del cliente usando su numero."""
+    clean_phone = phone[-8:]
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Customer).where(Customer.phone.endswith(clean_phone)))
         customer = result.scalars().first()
         if not customer:
-            return "Customer not found by phone."
+            return "Customer Profile no encontrado. Debes pedirle los datos."
+            
+        return json.dumps({
+            "id": customer.id,
+            "full_name": customer.full_name,
+            "email": customer.email,
+            "objective": getattr(customer, 'objective', ''),
+            "medical_notes": getattr(customer, 'medical_notes', ''),
+            "lifestyle_notes": getattr(customer, 'lifestyle_notes', '')
+        })
+
+async def update_customer_profile(phone: str, field: str, value: str, **kwargs) -> str:
+    """Actualiza campos especificos del perfil medico o transaccional del cliente."""
+    clean_phone = phone[-8:]
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Customer).where(Customer.phone.endswith(clean_phone)))
+        customer = result.scalars().first()
+        if not customer:
+            return "Customer not found. No se puede actualizar."
         
         if hasattr(customer, field):
             setattr(customer, field, value)
             await db.commit()
-            return f"Customer {field} updated successfully."
-        return f"Invalid field: {field}"
+            return f"SUCCESS: Campo '{field}' actualizado a '{value}'."
+        return f"ERROR: Campo inválido '{field}'. Usa full_name, email, objective, medical_notes, lifestyle_notes."
 
-async def create_order(phone: str, product_sku: str, quantity: int, **kwargs) -> str:
-    """Creates a new sales order for the customer given the product SKU and quantity."""
+async def get_customer_orders(phone: str, limit: int = 5, **kwargs) -> str:
+    """Lee el historial de ordenes previas de compras del cliente."""
+    clean_phone = phone[-8:]
+    async with AsyncSessionLocal() as db:
+        result_c = await db.execute(select(Customer).where(Customer.phone.endswith(clean_phone)))
+        customer = result_c.scalars().first()
+        if not customer:
+            return "Customer not found."
+            
+        result_o = await db.execute(select(Order).where(Order.customer_id == customer.id).order_by(Order.created_at.desc()).limit(limit))
+        orders = result_o.scalars().all()
+        if not orders:
+            return "El cliente no tiene órdenes previas registradas."
+            
+        return json.dumps([{"order_id": o.id, "status": o.status, "total_crc": _safe_float(o.total_amount), "date": str(o.created_at)} for o in orders])
+
+async def create_order_draft(phone: str, product_sku: str, quantity: int, **kwargs) -> str:
+    """Función de Smart Cart: Crea una orden borrador o añade a un carrito pendiente abierto."""
+    clean_phone = phone[-8:]
     try:
         quantity = int(float(quantity))
     except:
         quantity = 1
-    
+        
     async with AsyncSessionLocal() as db:
-        result_c = await db.execute(select(Customer).where(Customer.phone == phone))
+        result_c = await db.execute(select(Customer).where(Customer.phone.endswith(clean_phone)))
         customer = result_c.scalars().first()
         if not customer:
             return "Customer not found."
@@ -87,21 +143,35 @@ async def create_order(phone: str, product_sku: str, quantity: int, **kwargs) ->
         )
         product = result_p.scalars().first()
         if not product:
-            return f"Product with SKU or Name '{product_sku}' not found."
+            return f"El producto '{product_sku}' no existe en la BD."
             
-        # Create order
-        total = product.price * quantity
-        order = Order(
-            customer_id=customer.id,
-            total_amount=total,
-            status="created",
-            shipping_method="delivery" # default
-        )
-        db.add(order)
-        await db.commit()
-        await db.refresh(order)
+        if product.stock < quantity:
+             return f"No hay suficiente stock. Stock actual: {product.stock}"
+             
+        # Smart Cart Logic: check for open created order
+        result_cart = await db.execute(select(Order).where(Order.customer_id == customer.id).where(Order.status == 'created'))
+        order = result_cart.scalars().first()
         
-        # Add item
+        add_total = _safe_float(product.price) * quantity
+        
+        if not order:
+            # Create new cart
+            order = Order(
+                customer_id=customer.id,
+                total_amount=add_total,
+                status="created",
+                shipping_method="delivery"
+            )
+            db.add(order)
+            await db.commit()
+            await db.refresh(order)
+        else:
+            # Add to existing cart
+            order.total_amount = float(order.total_amount) + add_total
+            await db.commit()
+            await db.refresh(order)
+            
+        # Insert Item
         item = OrderItem(
             order_id=order.id,
             product_id=product.id,
@@ -110,54 +180,137 @@ async def create_order(phone: str, product_sku: str, quantity: int, **kwargs) ->
         )
         db.add(item)
         
-        # Decrease stock
+        # Deduce stock
         product.stock = max(0, product.stock - quantity)
         await db.commit()
         
-        return f"Order #{order.id} created successfully for {quantity}x {product.name}. Total: {total} CRC."
+        return f"SUCCESS: Carrito Actualizado. Agregaste {quantity}x {product.name}. Gran Total de la orden #{order.id}: {order.total_amount} CRC."
+
+async def remove_item_from_cart(phone: str, product_sku: str, **kwargs) -> str:
+    """Saca un producto del carrito pendiente y devuelve el stock al inventario."""
+    clean_phone = phone[-8:]
+    async with AsyncSessionLocal() as db:
+        result_c = await db.execute(select(Customer).where(Customer.phone.endswith(clean_phone)))
+        customer = result_c.scalars().first()
+        if not customer:
+            return "Customer not found."
+            
+        result_cart = await db.execute(select(Order).where(Order.customer_id == customer.id).where(Order.status == 'created'))
+        order = result_cart.scalars().first()
+        if not order:
+            return "No hay ningún carrito u orden pendiente abierta para este cliente."
+            
+        result_p = await db.execute(
+            select(Product).where(
+                (Product.sku == product_sku) | (Product.name.ilike(f"%{product_sku}%"))
+            )
+        )
+        product = result_p.scalars().first()
+        if not product:
+            return "Producto invalido."
+            
+        result_items = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id).where(OrderItem.product_id == product.id))
+        items = result_items.scalars().all()
+        if not items:
+            return "El cliente no tiene ese producto en su carrito."
+            
+        # Take the first matched item and destroy it
+        item_to_remove = items[0]
+        qty_restored = item_to_remove.quantity
+        price_deduced = _safe_float(item_to_remove.unit_price) * qty_restored
+        
+        await db.delete(item_to_remove)
+        
+        # Restore stock & total
+        product.stock += qty_restored
+        order.total_amount = max(0, float(order.total_amount) - price_deduced)
+        
+        await db.commit()
+        
+        return f"SUCCESS: Producto {product.name} removido del carrito. Nuevo Total de Orden #{order.id} es: {order.total_amount} CRC."
 
 # Tool Mapping dictionary
 AVAILABLE_TOOLS = {
-    "get_inventory": get_inventory,
-    "update_customer_info": update_customer_info,
-    "create_order": create_order
+    "get_store_policy": get_store_policy,
+    "search_catalog_by_name": search_catalog_by_name,
+    "search_catalog_by_category": search_catalog_by_category,
+    "get_customer_profile": get_customer_profile,
+    "update_customer_profile": update_customer_profile,
+    "get_customer_orders": get_customer_orders,
+    "create_order_draft": create_order_draft,
+    "remove_item_from_cart": remove_item_from_cart
 }
 
 # Define Tool Schemas for Gemini
 gemini_tools = [
      types.Tool(function_declarations=[
         types.FunctionDeclaration(
-            name="get_inventory",
-            description="Lee el inventario de la tienda para saber qué productos, precios (₡) y cuántas unidades tenemos en stock.",
-            parameters=types.Schema(
-                type="OBJECT",
-                properties={
-                    "query": types.Schema(type="STRING", description="Busca el nombre o categoría. PROHIBIDO USAR TILDES o Plurales (ej. escribe 'proteina', no 'proteína'). Déjalo vacio para ver todos.")
-                }
-            )
+            name="get_store_policy",
+            description="Lee las politicas de la tienda, metodos de pago, y politicas de envio y devoluciones.",
+            parameters=types.Schema(type="OBJECT", properties={})
         ),
         types.FunctionDeclaration(
-            name="update_customer_info",
-            description="Actualiza la información vital del cliente si en la conversacion te cuenta sus medidas o nombre real. Manten esto actualizado para ayudar mejor.",
+            name="search_catalog_by_name",
+            description="Busca productos en el catálogo usando el nombre literal o SKU. Ideal cuando el cliente pide una marca o nombre exacto.",
+            parameters=types.Schema(type="OBJECT", properties={
+                "query": types.Schema(type="STRING", description="Filtro exacto o parte del nombre.")
+            })
+        ),
+        types.FunctionDeclaration(
+            name="search_catalog_by_category",
+            description="Busca productos usando una familia o categoria general. Ej: proteina, creatina, pre-entreno.",
+            parameters=types.Schema(type="OBJECT", properties={
+                "category": types.Schema(type="STRING", description="Palabra categoria (creatina, proteina, aminoacidos).")
+            })
+        ),
+        types.FunctionDeclaration(
+            name="get_customer_profile",
+            description="Revisa el area personal y notas medicas del cliente para darle contexto a la asesoria.",
+            parameters=types.Schema(type="OBJECT", properties={})
+        ),
+        types.FunctionDeclaration(
+            name="update_customer_profile",
+            description="Actualiza datos transaccionales o notas fisicas/objetivos del cliente en base a lo que platica.",
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
-                    "field": types.Schema(type="STRING", description="Campo a reemplazar. Usa estrictamente: full_name o medical_notes o lifestyle_notes u objective"),
-                    "value": types.Schema(type="STRING", description="El valor actualizado del campo.")
+                    "field": types.Schema(type="STRING", description="Usa: full_name, medical_notes, lifestyle_notes u objective"),
+                    "value": types.Schema(type="STRING", description="Dato o nota nueva.")
                 },
                 required=["field", "value"]
             )
         ),
         types.FunctionDeclaration(
-            name="create_order",
-            description="Crea un borrador oficial de una orden de pedido para el cliente cuando ya confirma su interés de compra en algo en especifico.",
+            name="get_customer_orders",
+            description="Consulta compras anteriores y status de facturacion del cliente.",
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
-                    "product_sku": types.Schema(type="STRING", description="El identificador unico (SKU) O el nombre exacto del producto."),
-                    "quantity": types.Schema(type="INTEGER", description="Cantidad de bultos del producto.")
+                    "limit": types.Schema(type="INTEGER", description="Cuantas ordenes retornar (max 5)")
+                }
+            )
+        ),
+        types.FunctionDeclaration(
+            name="create_order_draft",
+            description="SMART CART: Mete un producto al carrito pendiente del cliente para cobrarlo. SI EL CLIENTE LO PIDE EXPRESAMENTE.",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "product_sku": types.Schema(type="STRING", description="El SKU o nombre exacto del producto."),
+                    "quantity": types.Schema(type="INTEGER", description="Cantidad numerica a meter al carrito.")
                 },
                 required=["product_sku", "quantity"]
+            )
+        ),
+        types.FunctionDeclaration(
+            name="remove_item_from_cart",
+            description="SMART CART: Saca un producto especifico del carrito de compras si el cliente cambia de opinion.",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "product_sku": types.Schema(type="STRING", description="El SKU o nombre exacto del producto a quitar.")
+                },
+                required=["product_sku"]
             )
         )
     ])
@@ -296,9 +449,8 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
                     
                     if f_name in AVAILABLE_TOOLS:
                         logger.info(f"AI INVOCANDO HERRAMIENTA: {f_name} {f_args_dict}")
-                        if f_name in ["update_customer_info", "create_order"]:
-                            # Inject phone to positional/kwargs automatically
-                            f_args_dict["phone"] = phone
+                        # Inject phone universally. Atomic Tools without phone arg will swallow it via **kwargs
+                        f_args_dict["phone"] = phone
                         
                         try:
                             res_val = await AVAILABLE_TOOLS[f_name](**f_args_dict)
