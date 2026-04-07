@@ -27,6 +27,7 @@ async def get_inventory(query: str = "") -> str:
     """Read the current store products inventory. Includes name, details, price, SKU, and stock count."""
     import unicodedata
     if query:
+        query = str(query)
         # Strip accents forcefully so PostgreSQL doesn't fail basic wildcard matching
         query = "".join(c for c in unicodedata.normalize('NFD', query) if unicodedata.category(c) != 'Mn')
     async with AsyncSessionLocal() as db:
@@ -55,6 +56,11 @@ async def update_customer_info(phone: str, field: str, value: str) -> str:
 
 async def create_order(phone: str, product_sku: str, quantity: int) -> str:
     """Creates a new sales order for the customer given the product SKU and quantity."""
+    try:
+        quantity = int(float(quantity))
+    except:
+        quantity = 1
+    
     async with AsyncSessionLocal() as db:
         result_c = await db.execute(select(Customer).where(Customer.phone == phone))
         customer = result_c.scalars().first()
@@ -232,45 +238,57 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
                     total_prompt_tokens += response.usage_metadata.prompt_token_count
                     total_completion_tokens += response.usage_metadata.candidates_token_count
 
-                # Extract Tool Calls
+                # Extract Tool Calls Safely
                 function_calls = []
                 for part in response.parts:
                     if part.function_call:
                         function_calls.append(part.function_call)
                 
+                # Safe Text Extraction
+                try:
+                    out_text = response.text if response.text else "[Sin texto]"
+                except Exception:
+                    out_text = "[Herramienta Invocada]"
+
                 full_raw_log.append({
                     "iteration": iters,
-                    "input": current_request_msg,
-                    "output_text": response.text if response.text else "[Function Call]"
+                    "input": current_request_msg if isinstance(current_request_msg, str) else "[Devolucion de Tool]",
+                    "output_text": out_text
                 })
 
                 if not function_calls:
                     # Model provided text response, loop finishes
-                    final_answer = response.text
+                    final_answer = out_text
                     break
                 
                 # Execute mapped functions
                 tool_responses = []
                 for fc in function_calls:
                     f_name = fc.name
-                    f_args = fc.args if fc.args else {}
+                    
+                    # Force serialize f_args
+                    f_args_dict = {}
+                    if fc.args:
+                        # Convert protobuf maps / Gemini SDK wrappers strictly to dict primitives
+                        for k, v in fc.args.items():
+                            f_args_dict[k] = str(v) if not isinstance(v, (int, float, str, bool)) else v
                     
                     full_raw_log[-1]["function_invoked"] = f_name
-                    full_raw_log[-1]["function_args"] = dict(f_args)
+                    full_raw_log[-1]["function_args"] = f_args_dict
                     
                     # Override phone args safely if needed by the Python functions mapping
-                    if "phone" in f_args:
+                    if "phone" in f_args_dict:
                         # Our definition doesn't declare phone intentionally, we force it internal
                         pass
                     
                     if f_name in AVAILABLE_TOOLS:
-                        logger.info(f"AI INVOCANDO HERRAMIENTA: {f_name} {f_args}")
+                        logger.info(f"AI INVOCANDO HERRAMIENTA: {f_name} {f_args_dict}")
                         if f_name in ["update_customer_info", "create_order"]:
                             # Inject phone to positional/kwargs automatically
-                            f_args["phone"] = phone
+                            f_args_dict["phone"] = phone
                         
                         try:
-                            res_val = await AVAILABLE_TOOLS[f_name](**f_args)
+                            res_val = await AVAILABLE_TOOLS[f_name](**f_args_dict)
                         except Exception as e:
                             logger.error(f"Errored executing {f_name}: {e}")
                             res_val = f"Error ejecutando herramienta interna: {e}"
@@ -311,16 +329,23 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
             except Exception as e:
                 logger.error(f"Failed to Send WhatsApp Reponse from AI: {e}")
                 
-        # Store Log Metrics Telemetry
-        ai_log = AILog(
-            customer_phone=phone,
-            endpoint=model_name,
-            request_payload={"history_count": len(gemini_history), "event_message": user_message_content},
-            response_payload={"iterations_history": full_raw_log, "final_answer": final_answer},
-            prompt_tokens=total_prompt_tokens,
-            completion_tokens=total_completion_tokens,
-            total_tokens=total_prompt_tokens + total_completion_tokens,
-            duration_ms=duration_ms
-        )
-        db.add(ai_log)
-        await db.commit()
+        # Store Log Metrics Telemetry (Isolated try/except so it NEVER crashes Celery retry loops)
+        try:
+            # Ensure full_raw_log is 100% JSON serialized to avoid Postgres JSONB rejections
+            safe_payload = json.loads(json.dumps(full_raw_log, default=str))
+            
+            ai_log = AILog(
+                customer_phone=phone,
+                endpoint=model_name,
+                request_payload={"history_count": len(gemini_history), "event_message": str(user_message_content)[:500]},
+                response_payload={"iterations_history": safe_payload, "final_answer": final_answer},
+                prompt_tokens=total_prompt_tokens,
+                completion_tokens=total_completion_tokens,
+                total_tokens=total_prompt_tokens + total_completion_tokens,
+                duration_ms=duration_ms
+            )
+            db.add(ai_log)
+            await db.commit()
+        except Exception as log_err:
+            logger.error(f"SYSTEM FATAL ERROR: Failed to save AI telemetry log to DB: {log_err}")
+            # We swallow this exception so the Celery task completes successfully (preventing WhatsApp Ghost Repeating)
