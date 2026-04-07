@@ -42,6 +42,29 @@ async def get_ai_logs(
         "logs": logs
     }
 
+@router.get("/system-logs")
+async def get_system_logs(
+    lines: int = 150,
+    current_user: User = Depends(deps.get_current_active_admin)
+):
+    """
+    Fetch the latest lines from the application log file for debugging crashes.
+    """
+    import os
+    log_path = os.path.join(os.getcwd(), "logs", "app.log")
+    
+    if not os.path.exists(log_path):
+        return {"logs": "El archivo de logs (app.log) aún no existe o el servidor no ha arrojado errores registrados."}
+        
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            # Read all lines and get the last N
+            all_lines = f.readlines()
+            last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            return {"logs": "".join(last_lines)}
+    except Exception as e:
+        return {"logs": f"Error leyendo archivo de logs: {e}"}
+
 @router.get("/customers", response_model=List[ChatCustomerSummary])
 async def get_chat_customers(db: AsyncSession = Depends(get_db)):
     """
