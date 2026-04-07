@@ -23,10 +23,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    # N8N Bypass MOCK User
-    if settings.N8N_API_KEY and token == settings.N8N_API_KEY:
-        from app.models.users import User as UserModel
-        return UserModel(id=0, name="N8N Automation", email="n8n@system", role="admin", is_active=True)
+    # Wait for normal tokens
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])

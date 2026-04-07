@@ -26,24 +26,7 @@ async def verify_webhook(request: Request):
     
     return Response(status_code=400, content="Missing parameters")
 
-async def forward_to_n8n(payload: Dict[str, Any]):
-    """
-    Forward the incoming payload to n8n.
-    """
-    url = settings.N8N_WEBHOOK_URL
-    logger.info(f"FORWARDING TO N8N: {url}")
-    
-    if not url:
-        logger.info("ERROR: N8N_WEBHOOK_URL not set in environment!")
-        return
-
-    async with httpx.AsyncClient() as client:
-        try:
-            logger.info(f"N8N PAYLOAD: {payload}")
-            response = await client.post(url, json=payload, timeout=10.0)
-            logger.info(f"N8N RESPONSE: {response.status_code} - {response.text}")
-        except Exception as e:
-            logger.info(f"N8N ERROR: {e}")
+from app.tasks.ai_tasks import process_ai_request_task
 
 async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
     """
@@ -60,6 +43,22 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
         if messages:
             msg = messages[0]
             logger.info(f"REAL WEBHOOK MSG: {msg}")
+            
+            # --- REDIS DEDUPLICATION START ---
+            msg_id = msg.get("id")
+            if msg_id:
+                try:
+                    import redis
+                    r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+                    if r.exists(f"wamid:{msg_id}"):
+                        logger.info(f"DUPLICATE WEBHOOK PREVENTED FOR WAMID: {msg_id}")
+                        return False, None, None
+                    # Lock it for 1 hour
+                    r.setex(f"wamid:{msg_id}", 3600, "1")
+                except Exception as re_err:
+                    logger.error(f"Redis Deduplication Error: {re_err}")
+            # --- REDIS DEDUPLICATION END ---
+
             phone = msg.get("from")
             msg_type = msg.get("type")
             
@@ -77,18 +76,18 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 int_type = interactive.get("type")
                 if int_type == "button_reply":
                     content = interactive.get("button_reply", {}).get("id")
-                    # Mutate payload so n8n sees a normal text message
+                    # Mutate payload so AI sees a normal text message
                     msg["type"] = "text"
                     msg["text"] = {"body": interactive.get("button_reply", {}).get("title", content)}
                 elif int_type == "list_reply":
                     content = interactive.get("list_reply", {}).get("id")
-                    # Mutate payload so n8n sees a normal text message
+                    # Mutate payload so AI sees a normal text message
                     msg["type"] = "text"
                     msg["text"] = {"body": interactive.get("list_reply", {}).get("title", content)}
             elif msg_type == "button":
                 # Handle Quick Reply Buttons from Templates
                 content = msg.get("button", {}).get("text") or msg.get("button", {}).get("payload")
-                # Mutate payload so n8n sees a normal text message
+                # Mutate payload so AI sees a normal text message
                 if content:
                     msg["type"] = "text"
                     msg["text"] = {"body": content}
@@ -130,7 +129,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                     logger.info(f"FAILED TO DOWNLOAD MEDIA: {e}")
                     content = f"[ERROR DOWNLOADING MEDIA {msg_type}]"
             
-            should_forward_to_n8n = True
+            should_forward_to_ai = True
 
             if phone and content:
                 # --- GET OR CREATE CUSTOMER LOGIC START ---
@@ -166,10 +165,9 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                     logger.info(f"CUSTOMER EXISTS: {customer.full_name}")
                 # --- GET OR CREATE CUSTOMER LOGIC END ---
 
-                # Check if AI is active for this customer
                 if not customer.ai_active:
-                    logger.info(f"AI IS OFF FOR CUSTOMER {clean_phone}. Message will be saved but not forwarded to n8n.")
-                    should_forward_to_n8n = False
+                    logger.info(f"AI IS OFF FOR CUSTOMER {clean_phone}. Message will be saved but not forwarded to Agent.")
+                    should_forward_to_ai = False
 
                 from app.models.orders import Order
                 from app.models.chat import ChatMessage
@@ -193,9 +191,9 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 # Bypassing the AI completely if the admin took control
                 if not customer.ai_active:
                     logger.info("AI is OFF. Bypassing State Machine Receipt Interception.")
-                    return should_forward_to_n8n
+                    return should_forward_to_ai, phone, content
 
-                # Quick helper to save internal AI messages so n8n/UI can see the history
+                # Quick helper to save internal AI messages so UI can see the history
                 async def _save_ai_msg(text: str):
                     ai_msg = ChatMessage(
                         customer_phone=phone,
@@ -236,7 +234,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                         )
                         await _save_ai_msg(msg_text)
                         await db.commit()
-                        should_forward_to_n8n = False
+                        should_forward_to_ai = False
                         
                     elif len(normal_pendings) > 1:
                         # Case B Step 1: Multiple pending orders
@@ -257,14 +255,14 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                         )
                         await _save_ai_msg(msg_text)
                         await db.commit()
-                        should_forward_to_n8n = False
+                        should_forward_to_ai = False
                     else:
                         # No pending orders
                         msg_text = "Aún no estoy entrenada para analizar imágenes. Por favor envíame texto."
                         await whatsapp_client.send_message(phone, msg_text)
                         await _save_ai_msg(msg_text)
                         await db.commit()
-                        should_forward_to_n8n = False
+                        should_forward_to_ai = False
 
                 elif msg_type == "interactive" or msg_type == "text":
                     # Check for active flows
@@ -294,7 +292,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                             await whatsapp_client.send_message(phone, msg_text)
                             await _save_ai_msg(msg_text)
                             await db.commit()
-                        should_forward_to_n8n = False
+                            should_forward_to_ai = False
 
                     # Handle Multiple Orders Confirmation (Is it a receipt?)
                     elif awaiting_multiple_conf and (msg_type == "interactive" or user_text in ["si", "sí", "yes", "no"]):
@@ -335,7 +333,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                             await whatsapp_client.send_message(phone, msg_text)
                             await _save_ai_msg(msg_text)
                             await db.commit()
-                        should_forward_to_n8n = False
+                            should_forward_to_ai = False
 
                     # Handle Multiple Orders Selection
                     elif awaiting_selection:
@@ -370,27 +368,27 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                                 await whatsapp_client.send_message(phone, msg_text)
                                 await _save_ai_msg(msg_text)
                                 await db.commit()
-                            should_forward_to_n8n = False
+                            should_forward_to_ai = False
 
                         else:
                             msg_text = "Por favor selecciona una orden de la lista o envía el número de la orden."
                             await whatsapp_client.send_message(phone, msg_text)
                             await _save_ai_msg(msg_text)
                             await db.commit()
-                            should_forward_to_n8n = False
+                            should_forward_to_ai = False
 
                 # --- RECEIPT INTERCEPTION LOGIC END ---
 
-                return should_forward_to_n8n
+                return should_forward_to_ai, phone, content
                 
     except Exception as e:
         await db.rollback()
         logger.error(f"ERROR: {e}")
         import traceback
         traceback.print_exc()
-        return True # Default to forward on error to handle gracefully via AI
+        return True, None, None # Default to forward on error to handle gracefully via AI
     
-    return True
+    return True, None, None
 
 @router.post("/webhook")
 async def receive_webhook(
@@ -408,7 +406,7 @@ async def receive_webhook(
         # We await this because we want to ensure it's saved? 
         # Or background it? Let's background the processing to return 200 OK fast to Meta.
         # However, passing DB session to background task can be tricky with async dependency injection closing session.
-        # For simplicity and robustness in this scale, let's await the DB save (fast enough) and background the n8n forward.
+        # For simplicity and robustness in this scale, let's await the DB save (fast enough) and background the AI queue forward.
         
         # Actually, let's just inspect payload quickly.
         # Meta expects 200 OK fast.
@@ -416,13 +414,12 @@ async def receive_webhook(
         # IMPORTANT: 'process_incoming_message' needs a session. 
         # Fastapi dependency 'db' is scoped to request. 
         # So we should await it here.
-        should_forward = await process_incoming_message(payload, db)
+        should_forward, phone, content = await process_incoming_message(payload, db)
         
-        # 2. Forward to n8n if not handled internally
-        if should_forward:
-            background_tasks.add_task(forward_to_n8n, payload)
-        else:
-            logger.info("INTERCEPTED MSG - NOT FORWARDING TO N8N")
+        # 2. Forward to Celery AI Queue if not handled internally
+        if should_forward and phone and content:
+            process_ai_request_task.delay(phone, content, "text")
+
         
         return Response(status_code=200, content="EVENT_RECEIVED")
     except Exception as e:

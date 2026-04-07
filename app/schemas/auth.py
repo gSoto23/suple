@@ -11,7 +11,7 @@ class TokenData(BaseModel):
 class UserBase(BaseModel):
     email: str
     name: str
-    role: str = "staff"
+    role: str = "seller"
     is_active: bool = True
 
 class UserCreate(UserBase):

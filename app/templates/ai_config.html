@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Configuration Panel -->
+    <div class="col-md-5">
+        <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+                <h2>Configuración del Agente IA</h2>
+            </div>
+            <div class="card-body">
+                <form id="ai-config-form">
+                    <div class="form-group">
+                        <label for="google_gemini_api_key">Google Gemini API Key</label>
+                        <input type="password" id="google_gemini_api_key" name="google_gemini_api_key" class="form-control" placeholder="AIzaSy..." value="{{ system_config.google_gemini_api_key or '' }}">
+                        <small style="color:var(--color-text-secondary); display:block; margin-top:5px;">Esta llave permanecerá encriptada y es requerida para el funcionamiento nativo.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ai_model_name">Velocidad y Modelo</label>
+                        <select id="ai_model_name" name="ai_model_name" class="form-control">
+                            <option value="gemini-1.5-flash" {% if system_config.ai_model_name == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash (Súper Rápido, ~2s, Económico)</option>
+                            <option value="gemini-2.5-flash" {% if system_config.ai_model_name == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
+                            <option value="gemini-1.5-pro" {% if system_config.ai_model_name == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro (Razonamiento Complejo, ~10s)</option>
+                            <option value="gemini-2.0-pro-exp-02-05" {% if system_config.ai_model_name == 'gemini-2.0-pro-exp-02-05' %}selected{% endif %}>Gemini 2.0 Pro Expriment</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ai_system_prompt">Comportamiento (System Prompt)</label>
+                        <textarea id="ai_system_prompt" name="ai_system_prompt" class="form-control" rows="12" placeholder="Eres un asistente de ventas...">{{ system_config.ai_system_prompt or '' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fa-solid fa-save"></i> Guardar Cambios en IA</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card" style="text-align: center;">
+                    <div class="card-body">
+                        <i class="fa-solid fa-bolt" style="font-size: 2rem; color: #f59e0b; margin-bottom: 10px;"></i>
+                        <h1 id="metric-responses">0</h1>
+                        <p style="color:var(--color-text-secondary);">Interacciones Completadas</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card" style="text-align: center;">
+                    <div class="card-body">
+                        <i class="fa-solid fa-coins" style="font-size: 2rem; color: var(--color-primary); margin-bottom: 10px;"></i>
+                        <h1 id="metric-tokens">0</h1>
+                        <p style="color:var(--color-text-secondary);">Tokens Consumidos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Telemetry -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Monitor de Telemetría (Traza de Pensamiento)</h2>
+                <button class="btn btn-sm" onclick="loadAILogs()" style="background-color: var(--color-background-elevated);"><i class="fa-solid fa-sync"></i> Refresh</button>
+            </div>
+            <div class="card-body">
+                <div id="logs-container" style="max-height: 800px; overflow-y: auto; background: var(--color-background); border-radius: 8px; padding: 15px;">
+                    <!-- Insert json raw traces -->
+                    <p style="text-align:center; color: var(--color-text-secondary);">Cargando telemetría de iteraciones...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth(); // Ensures user is logged in
+        loadAILogs();
+
+        document.getElementById('ai-config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const configData = {
+                google_gemini_api_key: document.getElementById('google_gemini_api_key').value.trim() || null,
+                ai_model_name: document.getElementById('ai_model_name').value,
+                ai_system_prompt: document.getElementById('ai_system_prompt').value
+            };
+
+            const api = new ApiClient();
+            try {
+                // Update via standard system settings endpoint! 
+                // We patched config.py to just accept SystemConfig arguments, but we need to verify /api/v1/config/ works globally
+                await api.put('/config/', configData);
+                showToast("Configuración IA actualizada", "success");
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        });
+    });
+
+    async function loadAILogs() {
+        const api = new ApiClient();
+        try {
+            const data = await api.get('/chat/ai-logs');
+            if(data.metrics) {
+                document.getElementById('metric-responses').innerText = data.metrics.total_requests;
+                // Compact number format for large token sums
+                document.getElementById('metric-tokens').innerText = new Intl.NumberFormat('en-US', { notation: "compact" }).format(data.metrics.total_tokens);
+            }
+
+            const c = document.getElementById('logs-container');
+            if(data.logs && data.logs.length > 0) {
+                c.innerHTML = data.logs.map(l => `
+                    <div style="background:var(--color-background-elevated); margin-bottom:15px; border-radius:8px; overflow:hidden; border-left: 4px solid var(--color-primary);">
+                        <div style="padding:10px 15px; background: rgba(0,0,0,0.02); border-bottom: 1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center;">
+                            <strong>${l.customer_phone || 'Desconocido'}</strong>
+                            <span style="font-size:0.8rem; color:var(--color-text-secondary);"><i class="fa-regular fa-clock"></i> ${formatDateTimeCR(l.created_at)}</span>
+                        </div>
+                        <div style="padding:15px;">
+                            <div style="font-size:0.9rem; margin-bottom: 10px;">
+                                <span style="background:var(--color-border); padding:2px 6px; border-radius:4px; font-size:0.75rem;">Input Msg</span> 
+                                <em style="color:var(--color-text-secondary);">${l.request_payload?.event_message || 'N/A'}</em>
+                            </div>
+                            <div style="background:var(--color-background); padding:10px; border-radius:6px; font-family:monospace; font-size:0.8rem; white-space:pre-wrap; max-height:200px; overflow-y:auto;">${escapeHTML(JSON.stringify(l.response_payload?.iterations_history || [], null, 2))}</div>
+                            
+                            <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--color-border); font-size:0.9rem;">
+                                <strong>Respuesta Final:</strong> ${escapeHTML(l.response_payload?.final_answer || '[Sin respuesta final de texto]')}
+                            </div>
+                            <div style="margin-top:10px; font-size:0.8rem; color:var(--color-text-secondary); display:flex; gap:15px;">
+                                <span><i class="fa-solid fa-coins"></i> ${l.total_tokens} tokens</span>
+                                <span><i class="fa-solid fa-stopwatch"></i> ${l.duration_ms} ms</span>
+                                <span><i class="fa-solid fa-microchip"></i> ${l.endpoint}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                c.innerHTML = `<p style="text-align:center; color: var(--color-text-secondary); padding: 30px;">Aún no existen registros de telemetría IA.</p>`;
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('logs-container').innerHTML = `<p style="color:red; text-align:center;">Error al cargar logs: ${err.message}</p>`;
+        }
+    }
+</script>
+{% endblock %}
