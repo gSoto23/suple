@@ -38,7 +38,16 @@ async def get_inventory(query: str = "") -> str:
         products = result.scalars().all()
         if not products:
             return "No products found matching that query."
-        return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": float(p.price), "stock": p.stock_quantity, "category": p.category} for p in products])
+        
+        def safe_float(val):
+            try:
+                if val is None or val == "":
+                    return 0.0
+                return float(val)
+            except (ValueError, TypeError):
+                return 0.0
+                
+        return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": safe_float(p.price), "stock": p.stock_quantity, "category": p.category} for p in products])
 
 async def update_customer_info(phone: str, field: str, value: str) -> str:
     """Updates a text field in the customer's profile. Fields allowed: full_name, email, medical_notes, lifestyle_notes, objective."""
@@ -312,7 +321,9 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
 
         duration_ms = int((time.time() - start_time) * 1000)
         
-        # Transmit via WhatsApp if we got an answer
+        # We will commit BOTH ChatMessage and AILog in a single atomic transaction 
+        # to prevent SQLite 'Database is Locked' concurrency errors between consecutive commits
+        
         if final_answer:
             msg_to_save = ChatMessage(
                 customer_phone=phone,
@@ -321,17 +332,15 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
                 content=final_answer
             )
             db.add(msg_to_save)
-            await db.commit()
             
-            # Real WP send
+            # Send message asynchronously before DB commit locking (non-blocking)
             try:
                 await whatsapp_client.send_message(to=phone, content=final_answer)
             except Exception as e:
                 logger.error(f"Failed to Send WhatsApp Reponse from AI: {e}")
                 
-        # Store Log Metrics Telemetry (Isolated try/except so it NEVER crashes Celery retry loops)
+        # Prepare Telemetry Log
         try:
-            # Ensure full_raw_log is 100% JSON serialized to avoid Postgres JSONB rejections
             safe_payload = json.loads(json.dumps(full_raw_log, default=str))
             
             ai_log = AILog(
@@ -345,7 +354,13 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
                 duration_ms=duration_ms
             )
             db.add(ai_log)
+        except Exception as prep_err:
+            logger.error(f"Failed preparing AILog object: {prep_err}")
+            
+        # Unified Atomic Commit
+        try:
             await db.commit()
-        except Exception as log_err:
-            logger.error(f"SYSTEM FATAL ERROR: Failed to save AI telemetry log to DB: {log_err}")
-            # We swallow this exception so the Celery task completes successfully (preventing WhatsApp Ghost Repeating)
+        except Exception as db_err:
+            logger.error(f"CRITICAL DB COMMIT ERROR (AILog / ChatMessage): {db_err}")
+            # If commit fails, we just log it and move on to kill the process loop smoothly
+            pass
