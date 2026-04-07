@@ -159,8 +159,7 @@ async def create_order_draft(phone: str, product_sku: str, quantity: int, **kwar
             order = Order(
                 customer_id=customer.id,
                 total_amount=add_total,
-                status="created",
-                shipping_method="delivery"
+                status="created"
             )
             db.add(order)
             await db.commit()
@@ -292,7 +291,7 @@ gemini_tools = [
         ),
         types.FunctionDeclaration(
             name="create_order_draft",
-            description="SMART CART: Mete un producto al carrito pendiente del cliente para cobrarlo. SI EL CLIENTE LO PIDE EXPRESAMENTE.",
+            description="SMART CART: Mete un producto al carrito pendiente del cliente. REGLA: *SIEMPRE DEBES pedirle al cliente que te confirme la cantidad exacta de bultos y el nombre del producto ANTES de invocar esta herramienta. Nunca la uses asumiendo datos sin preguntar.*",
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
