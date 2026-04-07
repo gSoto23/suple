@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Any
+from typing import List, Any, Union
 from pydantic import validator
 
 class Settings(BaseSettings):
@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     COUNTRY_PHONE_CODE: str = "506"
     DEFAULT_TIMEZONE: str = "America/Costa_Rica"
     COMPANY_ICON_CLASS: str = "fa-solid fa-dumbbell"
+    COMPANY_THEME_COLOR: str = "#dc2626"
     
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     
     @validator("DATABASE_URL", pre=True)
-    def assemble_db_connection(cls, v: str | Any) -> str:
+    def assemble_db_connection(cls, v: Union[str, Any]) -> str:
         if isinstance(v, str):
             if v.startswith("postgres://"):
                 return v.replace("postgres://", "postgresql+asyncpg://", 1)
@@ -34,9 +35,6 @@ class Settings(BaseSettings):
     WHATSAPP_BUSINESS_ACCOUNT_ID: str
     WHATSAPP_VERIFY_TOKEN: str
     
-    # n8n - Strictly Required without defaults
-    N8N_WEBHOOK_URL: str
-    N8N_API_KEY: str
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

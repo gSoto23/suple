@@ -9,7 +9,7 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(String, default="staff", nullable=False)  # admin, vet, inventory, staff
+    role = Column(String, default="seller", nullable=False)  # admin, seller
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

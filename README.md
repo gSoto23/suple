@@ -1,6 +1,6 @@
-# Suplementos CRM & Admin Portal
+# Sales-AI CRM & Admin Portal
 
-Internal administrative portal for managing supplements inventory, customers, prescriptions, subscriptions, and orders. The system features a modern, responsive UI and integrates with external AI workflows (such as n8n) for automated customer communication on WhatsApp.
+Internal administrative portal for managing supplements inventory, customers, prescriptions, subscriptions, and orders. The system features a modern, responsive UI and integrates a natively integrated Google GenAI agent module for automated customer communication on WhatsApp.
 
 ## 🚀 Features
 
@@ -14,27 +14,29 @@ Internal administrative portal for managing supplements inventory, customers, pr
   - Order history tracking and active lifecycle overview per customer.
 - **Order Management (POS)**: 
   - Create orders, calculate cart prices manually.
-- **AI Automation Integration (n8n Hybrid)**: 
-  - Secure `/chat/send_message` API endpoint for the n8n AI agent to request WhatsApp deliveries on behalf of the CRM.
+- **AI Automation Integration (Agentic Google GenAI)**: 
+  - Native Python-powered backend allowing direct Google GenAI bindings to read SQL DB and auto-reply to users seamlessly.
+  - Dedicated Administration Prompt and UI Panel integrated to manage memory logic seamlessly.
 - **System Configuration (SaaS Ready)**:
   - Global UI Dashboard to manage App toggles (Subscriptions, Marketing) via Database instead of static `.env` flags.
+  - Dynamically configure business identity traits directly from the UI (e.g. Master Theme Colors, Bank info, branches).
 - **Role-Based Access Control**: 
   - Secure login with JWT Authentication.
-  - Admin roles and config panels.
+  - Features two strict security tiers: **admin** (Superusers with config rights) and **seller** (Day-to-day sales agent).
 
 ## 🛠 Tech Stack
 
 - **Backend**: Python 3.10+ with [FastAPI](https://fastapi.tiangolo.com/)
 - **Database**: PostgreSQL (Production) / SQLite (Dev) with [SQLAlchemy 2.0](https://www.sqlalchemy.org/) (Async)
 - **Frontend**: Server-Side Rendering with Jinja2 Templates + Vanilla JS
-- **Styling**: Custom CSS ensuring a responsive, Blue/Yellow branded theme.
+- **Styling**: Modern, Database-driven Theme UI (Configurable without touching code) + Vanilla JS.
 
 ## 📦 Setup & Installation
 
 1. **Clone the repository**
    ```bash
    git clone <repo-url>
-   cd suplementos
+   cd sales-ai
    ```
 
 2. **Create Virtual Environment**
@@ -59,7 +61,7 @@ Internal administrative portal for managing supplements inventory, customers, pr
    
    - **Option A: SQLite (Default / Local Dev)**
      ```bash
-     DATABASE_URL="sqlite+aiosqlite:///./suplementos.db"
+     DATABASE_URL="sqlite+aiosqlite:///./sales-ai.db"
      ```
    
    - **Option B: Managed Database (PostgreSQL - Production)**
@@ -73,7 +75,12 @@ Internal administrative portal for managing supplements inventory, customers, pr
    alembic upgrade head
    ```
 
-6. **Run Server**
+6. **Seed Initial Admin User (Optional but Recommended)**
+   ```bash
+   python3 scripts/seed_data.py
+   ```
+
+7. **Run Server**
    ```bash
    uvicorn app.main:app --reload
    ```

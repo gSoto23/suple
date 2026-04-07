@@ -7,8 +7,8 @@
         <div class="page-header-actions" style="display: flex; gap: 10px;">
             <button class="btn btn-secondary" onclick="openConfigModal()"><i class="fa-solid fa-cog"></i> Config</button>
             <button class="btn btn-info" onclick="openFieldsModal()"><i class="fa-solid fa-list-check"></i> Campos Dinámicos</button>
-            <button class="btn btn-warning" onclick="exportJSON()"><i class="fa-solid fa-download"></i> Exportar</button>
-            <button class="btn btn-danger" onclick="triggerImport()"><i class="fa-solid fa-upload"></i> Importar</button>
+            <button class="btn btn-table-action" onclick="exportJSON()"><i class="fa-solid fa-download"></i> Exportar</button>
+            <button class="btn btn-table-action" onclick="triggerImport()"><i class="fa-solid fa-upload"></i> Importar</button>
             <button class="btn btn-table-action" onclick="openCreateProductModal()">Nuevo Producto</button>
         </div>
     </div>
@@ -65,6 +65,13 @@
                     <div class="form-group" style="flex: 1;">
                         <label>Teléfono Servicio al Cliente</label>
                         <input type="text" id="config-phone">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Color Temático (Opcional)</label>
+                        <input type="color" id="config-theme-color" style="height: 40px; padding: 0.2rem; cursor: pointer;">
                     </div>
                 </div>
 
@@ -324,6 +331,7 @@
             document.getElementById('config-sinpe').value = globalConfig.sinpe_number || '';
             document.getElementById('config-phone').value = globalConfig.customer_service_phone || '';
             document.getElementById('config-sub-discount').value = globalConfig.subscription_discount_percentage || 0;
+            document.getElementById('config-theme-color').value = globalConfig.company_theme_color || '#6b7280';
             document.getElementById('config-sub-min-duration').value = globalConfig.min_subscription_duration_days || 0;
             document.getElementById('config-enable-subs').checked = globalConfig.enable_subscriptions !== false;
             document.getElementById('config-enable-mkt').checked = globalConfig.enable_marketing !== false;
@@ -389,6 +397,7 @@
                 sinpe_number: document.getElementById('config-sinpe').value,
                 customer_service_phone: document.getElementById('config-phone').value,
                 subscription_discount_percentage: parseFloat(document.getElementById('config-sub-discount').value) || 0,
+                company_theme_color: document.getElementById('config-theme-color').value,
                 min_subscription_duration_days: parseInt(document.getElementById('config-sub-min-duration').value) || 0,
                 enable_subscriptions: document.getElementById('config-enable-subs').checked,
                 enable_marketing: document.getElementById('config-enable-mkt').checked,
@@ -399,7 +408,8 @@
             try {
                 const updatedConfig = await api.put('/config/', configData);
                 globalConfig = updatedConfig;
-                showToast('Configuración guardada correctamente', 'success');
+                showToast('Configuración guardada correctamente. Refrescando colores...', 'success');
+                setTimeout(() => window.location.reload(), 1500); // Reload to apply CSS
                 closeConfigModal();
             } catch (err) {
                 console.error(err);

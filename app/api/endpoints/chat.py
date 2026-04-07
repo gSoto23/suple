@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.core.database import get_db
-from app.models.chat import ChatMessage
+from app.models.chat import ChatMessage, AILog
 from app.models.customers import Customer
 from app.schemas.chat import ChatMessageRead, ChatMessageCreate, ChatCustomerSummary
 from app.core.config import settings
@@ -13,6 +13,34 @@ from app.api import deps
 from app.models.users import User
 
 router = APIRouter()
+
+@router.get("/ai-logs")
+async def get_ai_logs(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_admin)
+):
+    """
+    Fetch the latest AI execution logs for the dashboard.
+    """
+    result = await db.execute(select(AILog).order_by(desc(AILog.created_at)).limit(limit))
+    logs = result.scalars().all()
+    
+    # Calculate simple aggregates
+    res_aggs = await db.execute(select(AILog))
+    all_logs = res_aggs.scalars().all()
+    total_tokens = sum(l.total_tokens or 0 for l in all_logs)
+    avg_duration = sum(l.duration_ms or 0 for l in all_logs) / len(all_logs) if all_logs else 0
+    total_reqs = len(all_logs)
+    
+    return {
+        "metrics": {
+            "total_tokens": total_tokens,
+            "avg_latency_ms": round(avg_duration, 2),
+            "total_requests": total_reqs
+        },
+        "logs": logs
+    }
 
 @router.get("/customers", response_model=List[ChatCustomerSummary])
 async def get_chat_customers(db: AsyncSession = Depends(get_db)):
@@ -111,7 +139,7 @@ async def send_message_api(
     current_user: User = Depends(deps.get_current_active_admin)
 ):
     """
-    Send a message via WhatsApp (Triggered by n8n).
+    Send a message via WhatsApp.
     Logs to DB as 'ai' (usually) and sends to Meta.
     """
     # Fix media URL to ensure absolute path works for WhatsApp and is saved correctly
@@ -121,7 +149,7 @@ async def send_message_api(
 
     # 1. Log to DB FIRST
     # So even if Meta fails, we see what the AI tried to send
-    # Ensure sender is set/defaulted if not passed, usually n8n sends 'ai'
+    # Ensure sender is set/defaulted
     if not message.sender:
         message.sender = "ai"
         
@@ -142,7 +170,6 @@ async def send_message_api(
     except Exception as e:
         # If send fails, should we still log? 
         # Yes, maybe log as failed? Model doesn't have status.
-        # Let's error out for now so n8n knows it failed.
         raise HTTPException(status_code=500, detail=str(e))
 
     return msg

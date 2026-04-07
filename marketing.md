@@ -1,6 +1,6 @@
 # Documentación del Módulo de Marketing y Envíos Masivos
 
-El módulo de Marketing permite al CRM interactuar con la API Oficial de WhatsApp Cloud de Meta para sincronizar plantillas aprobadas, crear campañas y realizar envíos masivos dinámicos a múltiples clientes de la base de datos de Suplementos.
+El módulo de Marketing permite al CRM interactuar con la API Oficial de WhatsApp Cloud de Meta para sincronizar plantillas aprobadas, crear campañas y realizar envíos masivos dinámicos a múltiples clientes de la base de datos de Sales-AI.
 
 ---
 

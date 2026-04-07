@@ -22,6 +22,12 @@ class SystemConfigBase(BaseModel):
     currency_symbol: Optional[str] = "₡"
     country_phone_code: Optional[str] = "506"
     company_icon_class: Optional[str] = "fa-solid fa-dumbbell"
+    company_theme_color: Optional[str] = "#6b7280"
+    
+    # AI System
+    ai_system_prompt: Optional[str] = "Eres un asistente muy util para ventas de nuestra tienda."
+    google_gemini_api_key: Optional[str] = None
+    ai_model_name: Optional[str] = "gemini-1.5-flash"
 
 class SystemConfigCreate(SystemConfigBase):
     pass

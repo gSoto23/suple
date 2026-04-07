@@ -58,3 +58,8 @@ async def service_page(request: Request, db: AsyncSession = Depends(get_db)):
 async def marketing_page(request: Request, db: AsyncSession = Depends(get_db)):
     config = await get_system_config(db)
     return templates.TemplateResponse("marketing.html", {"request": request, "title": "Marketing", "system_config": config})
+
+@router.get("/ai-config", response_class=HTMLResponse)
+async def ai_config_page(request: Request, db: AsyncSession = Depends(get_db)):
+    config = await get_system_config(db)
+    return templates.TemplateResponse("ai_config.html", {"request": request, "title": "IA Config", "system_config": config})

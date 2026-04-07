@@ -15,6 +15,17 @@
         };
     </script>
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=2">
+    <!-- Theme Color Configurations -->
+    <style>
+        {% set theme_color = system_config.company_theme_color if system_config and system_config.company_theme_color else settings.COMPANY_THEME_COLOR %}
+        :root {
+            --color-primary: {{ theme_color }};
+            --color-primary-light: color-mix(in srgb, {{ theme_color }} 85%, white);
+            --color-action: color-mix(in srgb, {{ theme_color }} 85%, black);
+            --color-table-btn-primary: {{ theme_color }};
+            --color-table-btn-hover: color-mix(in srgb, {{ theme_color }} 85%, black);
+        }
+    </style>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Google Fonts -->
@@ -60,11 +71,14 @@
                         class="{% if '/marketing' in request.url.path %}active{% endif %}"><i
                             class="fa-solid fa-bullhorn"></i> Marketing</a></li>
                 {% endif %}
+                <li id="nav-ai-config" style="display: none;"><a href="{{ url_for('ai_config_page') }}"
+                        class="{% if '/ai-config' in request.url.path %}active{% endif %}"><i
+                            class="fa-solid fa-brain"></i> IA Config</a></li>
             </ul>
             <div class="user-profile">
                 <span id="user-name">Usuario</span>
-                <a href="#" onclick="logout()" class="btn btn-sm btn-warning"
-                    style="text-decoration: none; padding: 4px 8px;"><i class="fa-solid fa-sign-out-alt"></i></a>
+                <a href="#" onclick="logout()" class="btn btn-sm"
+                    style="background-color: rgba(255, 255, 255, 0.2); color: white; text-decoration: none; padding: 4px 8px;"><i class="fa-solid fa-sign-out-alt"></i></a>
             </div>
         </nav>
 

@@ -21,4 +21,4 @@ celery_app.conf.update(
 )
 
 # Auto-discover tasks in the app.tasks module
-celery_app.autodiscover_tasks(["app.tasks.marketing", "app.tasks.meta"])
+celery_app.autodiscover_tasks(["app.tasks.marketing", "app.tasks.meta", "app.tasks.ai_tasks"])

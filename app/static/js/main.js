@@ -92,6 +92,10 @@ async function loadCurrentUser() {
         if (userNameParams && user) {
             userNameParams.innerText = user.name || user.email;
         }
+        if (user && user.role === 'admin') {
+            const aiNav = document.getElementById('nav-ai-config');
+            if (aiNav) aiNav.style.display = 'block';
+        }
     } catch (e) {
         console.error("Failed to load user", e);
         // Optional: logout if token invalid

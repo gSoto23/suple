@@ -22,7 +22,7 @@ async def seed():
             print("Creating default admin user...")
             admin_user = User(
                 name="Agente Admin",
-                email="admin@suplementos.com",
+                email="admin@sales-ai.com",
                 password_hash=pwd_context.hash("admin123"),
                 role="admin",
                 is_active=True
@@ -32,13 +32,13 @@ async def seed():
             # Create sample product
             print("Creating sample product...")
             product = Product(
-                sku="BRAV-001",
-                name="Bravecto 10-20kg",
-                category="Antiparasitarios",
-                brand="MSD",
-                price=25000.00,
-                cost=18000.00,
-                stock=50,
+                sku="TEST-001",
+                name="TestProduct",
+                category="General",
+                brand="DemoBrand",
+                price=1000.00,
+                cost=500.00,
+                stock=100,
                 min_stock=10
             )
             session.add(product)

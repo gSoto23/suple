@@ -22,7 +22,7 @@ Para apuntar tu dominio (ej. `gscodecr.com`) a tu instancia Lightsail (`34.232.7
     *   **Value**: `34.232.74.118` (si es **A**) o `gscodecr.com` (si es **CNAME**).
     *   Haz clic en **Create records**.
 
-Esta guía describe paso a paso cómo desplegar la aplicación **La Vete** en un servidor AWS Lightsail utilizando **Ubuntu 22.04 LTS** (o superior).
+Esta guía describe paso a paso cómo desplegar la aplicación **Sales-AI** en un servidor AWS Lightsail utilizando **Ubuntu 22.04 LTS** (o superior).
 
 ---
 
@@ -37,7 +37,7 @@ Esta guía describe paso a paso cómo desplegar la aplicación **La Vete** en un
 3. Seleccionar **Platform**: Linux/Unix.
 4. Seleccionar **Blueprint**: **OS Only** -> **Ubuntu 22.04 LTS** (o 24.04).
 5. Elegir un plan (el de $5 o $10 USD suele ser suficiente para empezar).
-6. Darle un nombre a la instancia (ej: `suplementos-prod`) y crear.
+6. Darle un nombre a la instancia (ej: `sales-ai-prod`) y crear.
 
 ### 1.2 Configurar Networking
 1. Entrar a la instancia creada en Lightsail.
@@ -60,9 +60,9 @@ sudo apt update && sudo apt upgrade -y
 ```
 
 ### 2.2 Instalar Herramientas Necesarias
-Instalaremos Python, pip, entorno virtual, Nginx (servidor web) y Git.
+Instalaremos Python, pip, entorno virtual, Nginx (servidor web), Git y Redis (Cola de mensajería).
 ```bash
-sudo apt install -y python3-pip python3-venv nginx git acl
+sudo apt install -y python3-pip python3-venv nginx git acl redis-server
 ```
 
 ---
@@ -95,17 +95,17 @@ sudo swapon --show
 ## 3. Instalación de la Aplicación
 
 ### 3.1 Clonar el Repositorio
-Usaremos el directorio `/var/www/suplementos`.
+Usaremos el directorio `/var/www/sales-ai`.
 
 ```bash
 # Crear directorio y asignar permisos (reemplaza 'ubuntu' si tu usuario es otro)
-sudo mkdir -p /var/www/suplementos
-sudo chown ubuntu:ubuntu /var/www/suplementos
-cd /var/www/suplementos
+sudo mkdir -p /var/www/sales-ai
+sudo chown ubuntu:ubuntu /var/www/sales-ai
+cd /var/www/sales-ai
 
 # Clonar repositorio (usa tu URL de Github/Bitbucket)
 # Si es privado, necesitarás configurar una SSH Key o usar Token
-git clone https://github.com/TU_USUARIO/suplementos-admin.git .
+git clone https://github.com/TU_USUARIO/sales-ai-admin.git .
 ```
 
 ### 3.2 Configurar Entorno Python
@@ -127,7 +127,7 @@ nano .env
 ```
 Edita los valores en producción, esto es **ESTRICTAMENTE NECESARIO** porque la aplicación no tiene valores inseguros por defecto:
 - `SECRET_KEY`: Genera una clave segura. (Ej. `openssl rand -hex 32`)
-- `DATABASE_URL`: Si usas SQLite local, `sqlite+aiosqlite:////var/www/suplementos/suplementos.db` (nota las 4 barras para ruta absoluta). Si usas PostgreSQL (recomendado), pon tu URL de conexión (`postgres://...`).
+- `DATABASE_URL`: Si usas SQLite local, `sqlite+aiosqlite:////var/www/sales-ai/sales-ai.db` (nota las 4 barras para ruta absoluta). Si usas PostgreSQL (recomendado), pon tu URL de conexión (`postgres://...`).
 *(Nota: El sistema automáticamente convertirá URLs crudas `postgres://` a `postgresql+asyncpg://` a nivel configuración interno).*
 
 ### 3.4 Configurar Base de Datos
@@ -138,7 +138,7 @@ Tienes tres opciones principales:
 Ideal para prototipos o bajo tráfico. No requiere instalación extra.
 1. Edita tu `.env`:
    ```bash
-   DATABASE_URL=sqlite+aiosqlite:////var/www/suplementos/suplementos.db
+   DATABASE_URL=sqlite+aiosqlite:////var/www/sales-ai/sales-ai.db
    ```
    *(Nota: Son 4 barras `/` al inicio para indicar ruta absoluta)*
 
@@ -159,16 +159,16 @@ Si deseas PostgreSQL sin pagar extra por el servicio gestionado:
    ```bash
    sudo -u postgres psql
    # En psql:
-   CREATE DATABASE suplementosdb;
-   CREATE USER suplementosuser WITH PASSWORD 'tu_password';
-   GRANT ALL PRIVILEGES ON DATABASE suplementosdb TO suplementosuser;
+   CREATE DATABASE sales-aidb;
+   CREATE USER sales-aiuser WITH PASSWORD 'tu_password';
+   GRANT ALL PRIVILEGES ON DATABASE sales-aidb TO sales-aiuser;
    -- Para Postgres 15+:
-   GRANT ALL ON SCHEMA public TO suplementosuser;
+   GRANT ALL ON SCHEMA public TO sales-aiuser;
    \q
    ```
 3. **Actualizar .env**:
    ```bash
-   DATABASE_URL="postgresql+asyncpg://suplementosuser:tu_password@localhost/suplementosdb"
+   DATABASE_URL="postgresql+asyncpg://sales-aiuser:tu_password@localhost/sales-aidb"
    ```
 
 ### 3.5 Inicializar Base de Datos
@@ -184,23 +184,23 @@ Para que la aplicación corra siempre (incluso si se reinicia el servidor).
 
 ### 4.1 Crear archivo de servicio
 ```bash
-sudo nano /etc/systemd/system/suplementos.service
+sudo nano /etc/systemd/system/sales-ai.service
 ```
 
 Pega el siguiente contenido:
 
 ```ini
 [Unit]
-Description=Gunicorn instance to serve La Vete
+Description=Gunicorn instance to serve Sales-AI
 After=network.target
 
 [Service]
 User=ubuntu
 Group=www-data
-WorkingDirectory=/var/www/suplementos
-Environment="PATH=/var/www/suplementos/.venv/bin"
-ENVIRONMENT_FILE=/var/www/suplementos/.env
-ExecStart=/var/www/suplementos/.venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
+WorkingDirectory=/var/www/sales-ai
+Environment="PATH=/var/www/sales-ai/.venv/bin"
+ENVIRONMENT_FILE=/var/www/sales-ai/.env
+ExecStart=/var/www/sales-ai/.venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
 
 [Install]
 WantedBy=multi-user.target
@@ -209,11 +209,43 @@ WantedBy=multi-user.target
 
 ### 4.2 Iniciar el servicio
 ```bash
-sudo systemctl start suplementos
-sudo systemctl enable suplementos
-sudo systemctl status suplementos
+sudo systemctl start sales-ai
+sudo systemctl enable sales-ai
+sudo systemctl status sales-ai
 ```
 *(Deberías ver "Active: active (running)")*
+
+### 4.3 Configurar Servicio para Colas de IA (Celery Worker)
+Para manejar toda la carga de Inteligencia Artificial sin bloquear Gunicorn, levantamos un entorno de Celery escuchando a Redis.
+
+```bash
+sudo nano /etc/systemd/system/sales-ai-celery.service
+```
+
+Pega lo siguiente:
+```ini
+[Unit]
+Description=Celery Worker for Sales-AI
+After=network.target redis-server.service
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/var/www/sales-ai
+Environment="PATH=/var/www/sales-ai/.venv/bin"
+EnvironmentFile=/var/www/sales-ai/.env
+ExecStart=/var/www/sales-ai/.venv/bin/celery -A app.core.celery worker --loglevel=info
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Inícialo igual que la API web:
+```bash
+sudo systemctl start sales-ai-celery
+sudo systemctl enable sales-ai-celery
+```
 
 ---
 
@@ -223,7 +255,7 @@ Nginx recibirá las peticiones del exterior (puerto 80) y las pasará a nuestra 
 
 ### 5.1 Crear configuración de sitio
 ```bash
-sudo nano /etc/nginx/sites-available/suplementos
+sudo nano /etc/nginx/sites-available/sales-ai
 ```
 
 Pega el siguiente contenido (reemplaza `tu-dominio.com` o la IP pública):
@@ -250,14 +282,14 @@ server {
 
     # Opcional: Servir archivos estáticos directamente con Nginx para mejor rendimiento
     location /static {
-        alias /var/www/suplementos/app/static;
+        alias /var/www/sales-ai/app/static;
     }
 }
 ```
 
 ### 5.2 Activar sitio
 ```bash
-sudo ln -s /etc/nginx/sites-available/suplementos /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/sales-ai /etc/nginx/sites-enabled/
 sudo nginx -t # Verificar sintaxis
 sudo systemctl restart nginx
 ```
@@ -283,11 +315,11 @@ Sigue las instrucciones y elige "Redirect" para forzar HTTPS.
 Cada vez que hagas cambios en tu código y los subas a GitHub, sigue estos pasos en el servidor para actualizar:
 
 ### Script Rápido (Opcional)
-Puedes crear un script `deploy.sh` en `/var/www/suplementos`:
+Puedes crear un script `deploy.sh` en `/var/www/sales-ai`:
 
 ```bash
 #!/bin/bash
-cd /var/www/suplementos
+cd /var/www/sales-ai
 echo "Descargando cambios..."
 git pull origin main
 
@@ -299,7 +331,8 @@ echo "Ejecutando migraciones..."
 alembic upgrade head
 
 echo "Reiniciando servicio..."
-sudo systemctl restart suplementos
+sudo systemctl restart sales-ai
+sudo systemctl restart sales-ai-celery
 
 echo "Deployment finalizado con éxito!"
 ```
@@ -308,8 +341,9 @@ Dale permisos de ejecución: `chmod +x deploy.sh`.
 
 ### Ejecución Manual
 Simplemente corre los comandos del script:
-1. `cd /var/www/suplementos`
+1. `cd /var/www/sales-ai`
 2. `git pull`
 3. `source .venv/bin/activate && pip install -r requirements.txt` (si hubo cambios en librerías)
 4. `alembic upgrade head` (si hubo cambios en BD)
-5. `sudo systemctl restart suplementos`
+5. `sudo systemctl restart sales-ai`
+6. `sudo systemctl restart sales-ai-celery` (Obligatorio si cambiaste utilidades de Inteligencia Artificial)

@@ -26,24 +26,7 @@ async def verify_webhook(request: Request):
     
     return Response(status_code=400, content="Missing parameters")
 
-async def forward_to_n8n(payload: Dict[str, Any]):
-    """
-    Forward the incoming payload to n8n.
-    """
-    url = settings.N8N_WEBHOOK_URL
-    logger.info(f"FORWARDING TO N8N: {url}")
-    
-    if not url:
-        logger.info("ERROR: N8N_WEBHOOK_URL not set in environment!")
-        return
-
-    async with httpx.AsyncClient() as client:
-        try:
-            logger.info(f"N8N PAYLOAD: {payload}")
-            response = await client.post(url, json=payload, timeout=10.0)
-            logger.info(f"N8N RESPONSE: {response.status_code} - {response.text}")
-        except Exception as e:
-            logger.info(f"N8N ERROR: {e}")
+from app.tasks.ai_tasks import process_ai_request_task
 
 async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
     """
@@ -166,9 +149,8 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                     logger.info(f"CUSTOMER EXISTS: {customer.full_name}")
                 # --- GET OR CREATE CUSTOMER LOGIC END ---
 
-                # Check if AI is active for this customer
                 if not customer.ai_active:
-                    logger.info(f"AI IS OFF FOR CUSTOMER {clean_phone}. Message will be saved but not forwarded to n8n.")
+                    logger.info(f"AI IS OFF FOR CUSTOMER {clean_phone}. Message will be saved but not forwarded to Agent.")
                     should_forward_to_n8n = False
 
                 from app.models.orders import Order
@@ -193,7 +175,7 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 # Bypassing the AI completely if the admin took control
                 if not customer.ai_active:
                     logger.info("AI is OFF. Bypassing State Machine Receipt Interception.")
-                    return should_forward_to_n8n
+                    return should_forward_to_n8n, phone, content
 
                 # Quick helper to save internal AI messages so n8n/UI can see the history
                 async def _save_ai_msg(text: str):
@@ -381,16 +363,16 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
 
                 # --- RECEIPT INTERCEPTION LOGIC END ---
 
-                return should_forward_to_n8n
+                return should_forward_to_n8n, phone, content
                 
     except Exception as e:
         await db.rollback()
         logger.error(f"ERROR: {e}")
         import traceback
         traceback.print_exc()
-        return True # Default to forward on error to handle gracefully via AI
+        return True, None, None # Default to forward on error to handle gracefully via AI
     
-    return True
+    return True, None, None
 
 @router.post("/webhook")
 async def receive_webhook(
@@ -416,13 +398,12 @@ async def receive_webhook(
         # IMPORTANT: 'process_incoming_message' needs a session. 
         # Fastapi dependency 'db' is scoped to request. 
         # So we should await it here.
-        should_forward = await process_incoming_message(payload, db)
+        should_forward, phone, content = await process_incoming_message(payload, db)
         
-        # 2. Forward to n8n if not handled internally
-        if should_forward:
-            background_tasks.add_task(forward_to_n8n, payload)
-        else:
-            logger.info("INTERCEPTED MSG - NOT FORWARDING TO N8N")
+        # 2. Forward to Celery AI Queue if not handled internally
+        if should_forward and phone and content:
+            process_ai_request_task.delay(phone, content, "text")
+
         
         return Response(status_code=200, content="EVENT_RECEIVED")
     except Exception as e:
