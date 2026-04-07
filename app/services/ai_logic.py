@@ -25,6 +25,10 @@ async def _get_global_config(db: AsyncSession) -> SystemConfig:
 # --- NATIVE TOOLS ---
 async def get_inventory(query: str = "") -> str:
     """Read the current store products inventory. Includes name, details, price, SKU, and stock count."""
+    import unicodedata
+    if query:
+        # Strip accents forcefully so PostgreSQL doesn't fail basic wildcard matching
+        query = "".join(c for c in unicodedata.normalize('NFD', query) if unicodedata.category(c) != 'Mn')
     async with AsyncSessionLocal() as db:
         stmt = select(Product)
         if query:
@@ -57,10 +61,14 @@ async def create_order(phone: str, product_sku: str, quantity: int) -> str:
         if not customer:
             return "Customer not found."
             
-        result_p = await db.execute(select(Product).where(Product.sku == product_sku))
+        result_p = await db.execute(
+            select(Product).where(
+                (Product.sku == product_sku) | (Product.name.ilike(f"%{product_sku}%"))
+            )
+        )
         product = result_p.scalars().first()
         if not product:
-            return f"Product with SKU {product_sku} not found."
+            return f"Product with SKU or Name '{product_sku}' not found."
             
         # Create order
         total = product.price * quantity
@@ -127,8 +135,8 @@ gemini_tools = [
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
-                    "product_sku": types.Schema(type="STRING", description="El identificador unico (SKU) del producto (obtenlo ejecutando get_inventory primero)."),
-                    "quantity": types.Schema(type="INTEGER", description="Cantidad de bultos del produco.")
+                    "product_sku": types.Schema(type="STRING", description="El identificador unico (SKU) O el nombre exacto del producto."),
+                    "quantity": types.Schema(type="INTEGER", description="Cantidad de bultos del producto.")
                 },
                 required=["product_sku", "quantity"]
             )

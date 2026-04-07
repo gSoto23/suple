@@ -50,11 +50,11 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                 try:
                     import redis
                     r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-                    if r.exists(f"wamid:{msg_id}"):
+                    # Use setnx (NX=True) for atomic race condition prevention
+                    is_new = r.set(f"wamid:{msg_id}", "1", nx=True, ex=3600)
+                    if not is_new:
                         logger.info(f"DUPLICATE WEBHOOK PREVENTED FOR WAMID: {msg_id}")
                         return False, None, None
-                    # Lock it for 1 hour
-                    r.setex(f"wamid:{msg_id}", 3600, "1")
                 except Exception as re_err:
                     logger.error(f"Redis Deduplication Error: {re_err}")
             # --- REDIS DEDUPLICATION END ---
