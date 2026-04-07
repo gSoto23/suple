@@ -57,6 +57,18 @@ async def process_incoming_message(payload: Dict[str, Any], db: AsyncSession):
                         return False, None, None
                 except Exception as re_err:
                     logger.error(f"Redis Deduplication Error: {re_err}")
+                    
+                # RAM Fallback Deduplication (In case Redis is offline or unstable causing bypasses)
+                if not hasattr(process_incoming_message, "_dedup_cache"):
+                    process_incoming_message._dedup_cache = {}
+                if msg_id in process_incoming_message._dedup_cache:
+                    logger.info(f"RAM DUPLICATE WEBHOOK PREVENTED FOR WAMID: {msg_id}")
+                    return False, None, None
+                process_incoming_message._dedup_cache[msg_id] = True
+                
+                # Cleanup RAM cache if it grows too large
+                if len(process_incoming_message._dedup_cache) > 1000:
+                    process_incoming_message._dedup_cache.clear()
             # --- REDIS DEDUPLICATION END ---
 
             phone = msg.get("from")

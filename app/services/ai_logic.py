@@ -23,7 +23,7 @@ async def _get_global_config(db: AsyncSession) -> SystemConfig:
     return result.scalars().first()
 
 # --- NATIVE TOOLS ---
-async def get_inventory(query: str = "") -> str:
+async def get_inventory(query: str = "", **kwargs) -> str:
     """Read the current store products inventory. Includes name, details, price, SKU, and stock count."""
     import unicodedata
     if query:
@@ -49,7 +49,7 @@ async def get_inventory(query: str = "") -> str:
                 
         return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": safe_float(p.price), "stock": p.stock_quantity, "category": p.category} for p in products])
 
-async def update_customer_info(phone: str, field: str, value: str) -> str:
+async def update_customer_info(phone: str, field: str, value: str, **kwargs) -> str:
     """Updates a text field in the customer's profile. Fields allowed: full_name, email, medical_notes, lifestyle_notes, objective."""
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Customer).where(Customer.phone == phone))
@@ -63,7 +63,7 @@ async def update_customer_info(phone: str, field: str, value: str) -> str:
             return f"Customer {field} updated successfully."
         return f"Invalid field: {field}"
 
-async def create_order(phone: str, product_sku: str, quantity: int) -> str:
+async def create_order(phone: str, product_sku: str, quantity: int, **kwargs) -> str:
     """Creates a new sales order for the customer given the product SKU and quantity."""
     try:
         quantity = int(float(quantity))
