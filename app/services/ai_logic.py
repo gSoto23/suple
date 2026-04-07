@@ -61,10 +61,14 @@ async def create_order(phone: str, product_sku: str, quantity: int) -> str:
         if not customer:
             return "Customer not found."
             
-        result_p = await db.execute(select(Product).where(Product.sku == product_sku))
+        result_p = await db.execute(
+            select(Product).where(
+                (Product.sku == product_sku) | (Product.name.ilike(f"%{product_sku}%"))
+            )
+        )
         product = result_p.scalars().first()
         if not product:
-            return f"Product with SKU {product_sku} not found."
+            return f"Product with SKU or Name '{product_sku}' not found."
             
         # Create order
         total = product.price * quantity
@@ -131,8 +135,8 @@ gemini_tools = [
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
-                    "product_sku": types.Schema(type="STRING", description="El identificador unico (SKU) del producto (obtenlo ejecutando get_inventory primero)."),
-                    "quantity": types.Schema(type="INTEGER", description="Cantidad de bultos del produco.")
+                    "product_sku": types.Schema(type="STRING", description="El identificador unico (SKU) O el nombre exacto del producto."),
+                    "quantity": types.Schema(type="INTEGER", description="Cantidad de bultos del producto.")
                 },
                 required=["product_sku", "quantity"]
             )
