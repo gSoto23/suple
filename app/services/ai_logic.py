@@ -105,7 +105,7 @@ gemini_tools = [
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
-                    "query": types.Schema(type="STRING", description="Busca el nombre del producto o dejalo vacio para ver todos.")
+                    "query": types.Schema(type="STRING", description="Busca el nombre o categoría. PROHIBIDO USAR TILDES o Plurales (ej. escribe 'proteina', no 'proteína'). Déjalo vacio para ver todos.")
                 }
             )
         ),
@@ -151,6 +151,8 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
 
         client = genai.Client(api_key=config.google_gemini_api_key)
         model_name = config.ai_model_name or "gemini-1.5-flash"
+        if model_name.startswith("models/"):
+            model_name = model_name.replace("models/", "")
         
         # Assemble history for context limit
         result_history = await db.execute(select(ChatMessage).where(ChatMessage.customer_phone == phone).order_by(ChatMessage.id.desc()).limit(15))
