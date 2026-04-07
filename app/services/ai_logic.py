@@ -51,7 +51,7 @@ async def get_inventory(query: str = "", **kwargs) -> str:
             except (ValueError, TypeError):
                 return 0.0
                 
-        return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": safe_float(p.price), "stock": p.stock_quantity, "category": p.category} for p in products])
+        return json.dumps([{"sku": p.sku, "name": p.name, "price_crc": safe_float(p.price), "stock": p.stock, "category": p.category} for p in products])
 
 async def update_customer_info(phone: str, field: str, value: str, **kwargs) -> str:
     """Updates a text field in the customer's profile. Fields allowed: full_name, email, medical_notes, lifestyle_notes, objective."""
@@ -111,7 +111,7 @@ async def create_order(phone: str, product_sku: str, quantity: int, **kwargs) ->
         db.add(item)
         
         # Decrease stock
-        product.stock_quantity = max(0, product.stock_quantity - quantity)
+        product.stock = max(0, product.stock - quantity)
         await db.commit()
         
         return f"Order #{order.id} created successfully for {quantity}x {product.name}. Total: {total} CRC."
