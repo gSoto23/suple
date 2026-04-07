@@ -248,6 +248,41 @@ async def checkout_smart_cart(phone: str, delivery_address: str, payment_method:
         
         return f"SUCCESS: Check-out completado para Orden #{order.id}. Total final: {order.total_amount}. STATUS: pending_payment."
 
+async def cancel_active_order(phone: str, **kwargs) -> str:
+    """Anula la última orden activa (creada o pendiente de pago) del cliente y restaura el inventario."""
+    clean_phone = phone[-8:]
+    async with AsyncSessionLocal() as db:
+        result_c = await db.execute(select(Customer).where(Customer.phone.endswith(clean_phone)))
+        customer = result_c.scalars().first()
+        if not customer:
+            return "Customer not found."
+            
+        # Buscar la ultima orden que no este pagada ni completada ni cancelada
+        result_order = await db.execute(
+            select(Order)
+            .where(Order.customer_id == customer.id)
+            .where(Order.status.in_(['created', 'pending_payment']))
+            .order_by(Order.created_at.desc())
+        )
+        order = result_order.scalars().first()
+        
+        if not order:
+            return "El cliente no tiene ninguna orden activa o pendiente que se pueda cancelar."
+            
+        # Restaurar inventario
+        result_items = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+        items = result_items.scalars().all()
+        
+        for item in items:
+            product = await db.get(Product, item.product_id)
+            if product:
+                product.stock += item.quantity
+                
+        order.status = 'cancelled'
+        await db.commit()
+        
+        return f"SUCCESS: La orden #{order.id} ha sido anulada exitosamente. El inventario ha sido devuelto."
+
 # Tool Mapping dictionary
 AVAILABLE_TOOLS = {
     "get_store_policy": get_store_policy,
@@ -258,7 +293,8 @@ AVAILABLE_TOOLS = {
     "get_customer_orders": get_customer_orders,
     "create_order_draft": create_order_draft,
     "remove_item_from_cart": remove_item_from_cart,
-    "checkout_smart_cart": checkout_smart_cart
+    "checkout_smart_cart": checkout_smart_cart,
+    "cancel_active_order": cancel_active_order
 }
 
 # Define Tool Schemas for Gemini
@@ -343,6 +379,14 @@ gemini_tools = [
                     "payment_method": types.Schema(type="STRING", description="SINPE, Transferencia, Tarjeta, etc.")
                 },
                 required=["delivery_address", "payment_method"]
+            )
+        ),
+        types.FunctionDeclaration(
+            name="cancel_active_order",
+            description="CANCELA Y ANULA la ultima orden pendiente de pago o carrito creado del cliente. Usala cuando el cliente diga 'mejor cancele la orden' o 'elimina el pedido' despues de haber intentado cobrar.",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={}
             )
         )
     ])
