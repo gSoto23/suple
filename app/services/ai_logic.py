@@ -25,6 +25,10 @@ async def _get_global_config(db: AsyncSession) -> SystemConfig:
 # --- NATIVE TOOLS ---
 async def get_inventory(query: str = "") -> str:
     """Read the current store products inventory. Includes name, details, price, SKU, and stock count."""
+    import unicodedata
+    if query:
+        # Strip accents forcefully so PostgreSQL doesn't fail basic wildcard matching
+        query = "".join(c for c in unicodedata.normalize('NFD', query) if unicodedata.category(c) != 'Mn')
     async with AsyncSessionLocal() as db:
         stmt = select(Product)
         if query:
