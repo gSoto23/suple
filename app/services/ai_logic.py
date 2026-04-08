@@ -446,6 +446,7 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
         # Compile System Prompts
         sys_prompt = config.ai_system_prompt or "Eres el asistente de ventas estrella. Siempre hablas con profesionalismo y carisma."
         sys_prompt += "\n\n--- GUARDS Y CONTEXTO AUTOMÁTICO ---\n"
+        sys_prompt += "REGLA DE ORO ANTI-ALUCINACIÓN: NUNCA, BAJO NINGUNA CIRCUNSTANCIA, sugieras, ofrezcas o inventes productos de tu memoria pre-entrenada. TODA mención, sugerencia o precio de un producto DEBE provenir EXCLUSIVAMENTE de los datos devueltos por 'search_catalog_by_name' o 'search_catalog_by_category'. Si el cliente pide una recomendación, DEBES ejecutar la herramienta de búsqueda OBLIGATORIAMENTE antes de responderle.\n"
         sys_prompt += f"HORA ACTUAL COSTA RICA (America/Costa_Rica UTC-6): {cr_time}\n"
         sys_prompt += f"TELÉFONO DEL CLIENTE: {phone}\n"
         sys_prompt += f"DATOS DEL CLIENTE: {json.dumps(customer_data, ensure_ascii=False)}\n"
