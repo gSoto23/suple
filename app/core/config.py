@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     WHATSAPP_BUSINESS_ACCOUNT_ID: str
     WHATSAPP_VERIFY_TOKEN: str
     
+    # Internal Security
+    ENCRYPTION_KEY: Union[str, None] = None
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -35,9 +35,19 @@ class SystemConfigCreate(SystemConfigBase):
 class SystemConfigUpdate(SystemConfigBase):
     pass
 
+from app.core.security import decrypt_value
+
 class SystemConfig(SystemConfigBase):
     id: int
     updated_at: datetime
+
+    @field_serializer('google_gemini_api_key')
+    def mask_api_key(self, api_key: str, _info):
+        if api_key:
+            decrypted = decrypt_value(api_key)
+            if decrypted:
+                return f"********{decrypted[-4:]}" if len(decrypted) > 4 else "********"
+        return None
 
     class Config:
         from_attributes = True

@@ -11,12 +11,15 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals['settings'] = settings
 
+from app.schemas.system import SystemConfig as SystemConfigSchema
+
 async def get_system_config(db: AsyncSession):
     result = await db.execute(select(SystemConfig).limit(1))
     config = result.scalars().first()
     if not config:
         config = SystemConfig()
-    return config
+    schema = SystemConfigSchema.model_validate(config)
+    return schema.model_dump()
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):

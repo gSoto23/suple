@@ -393,6 +393,8 @@ gemini_tools = [
 ]
 
 
+from app.core.security import decrypt_value
+
 async def execute_ai_agent(phone: str, user_message_content: str, message_type: str = "text"):
     """
     Main Loop for the AI Logic. Intercepts webhook payload, thinks, runs tools, and replies.
@@ -405,7 +407,12 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
             logger.error("No Gemini API Key defined in DB.")
             return
 
-        client = genai.Client(api_key=config.google_gemini_api_key)
+        decrypted_key = decrypt_value(config.google_gemini_api_key)
+        if not decrypted_key:
+            logger.error("Gemini API Key could not be decrypted.")
+            return
+
+        client = genai.Client(api_key=decrypted_key)
         model_name = config.ai_model_name or "gemini-1.5-flash"
         if model_name.startswith("models/"):
             model_name = model_name.replace("models/", "")

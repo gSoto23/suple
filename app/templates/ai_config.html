@@ -12,8 +12,8 @@
                 <form id="ai-config-form">
                     <div class="form-group">
                         <label for="google_gemini_api_key">Google Gemini API Key</label>
-                        <input type="password" id="google_gemini_api_key" name="google_gemini_api_key" class="form-control" placeholder="AIzaSy..." value="{{ system_config.google_gemini_api_key or '' }}">
-                        <small style="color:var(--color-text-secondary); display:block; margin-top:5px;">Esta llave permanecerá encriptada y es requerida para el funcionamiento nativo.</small>
+                        <input type="text" id="google_gemini_api_key" name="google_gemini_api_key" class="form-control" placeholder="Pega tu nueva llave aquí..." value="{{ system_config.google_gemini_api_key or '' }}">
+                        <small style="color:var(--color-text-secondary); display:block; margin-top:5px;">Esta llave está encriptada en la base de datos. Pega una nueva solo si deseas actualizarla.</small>
                     </div>
 
                     <div class="form-group">
@@ -96,11 +96,18 @@ Cargando logs del servidor...
 
         document.getElementById('ai-config-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            const apiKeyInput = document.getElementById('google_gemini_api_key').value.trim();
             const configData = {
-                google_gemini_api_key: document.getElementById('google_gemini_api_key').value.trim() || null,
                 ai_model_name: document.getElementById('ai_model_name').value,
                 ai_system_prompt: document.getElementById('ai_system_prompt').value
             };
+            
+            if (apiKeyInput && !apiKeyInput.startsWith("********")) {
+                configData.google_gemini_api_key = apiKeyInput;
+            } else if (!apiKeyInput) {
+                configData.google_gemini_api_key = null;
+            }
 
             const api = new ApiClient();
             try {
