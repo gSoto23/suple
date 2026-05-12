@@ -1,4 +1,4 @@
-# Sales-AI CRM & Admin Portal
+# Suple CRM & Admin Portal
 
 Internal administrative portal for managing supplements inventory, customers, prescriptions, subscriptions, and orders. The system features a modern, responsive UI and integrates a natively integrated Google GenAI agent module for automated customer communication on WhatsApp.
 
@@ -36,7 +36,7 @@ Internal administrative portal for managing supplements inventory, customers, pr
 1. **Clone the repository**
    ```bash
    git clone <repo-url>
-   cd sales-ai
+   cd suple
    ```
 
 2. **Create Virtual Environment**
@@ -61,7 +61,7 @@ Internal administrative portal for managing supplements inventory, customers, pr
    
    - **Option A: SQLite (Default / Local Dev)**
      ```bash
-     DATABASE_URL="sqlite+aiosqlite:///./sales-ai.db"
+     DATABASE_URL="sqlite+aiosqlite:///./suple.db"
      ```
    
    - **Option B: Managed Database (PostgreSQL - Production)**

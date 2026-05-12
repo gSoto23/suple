@@ -16,7 +16,7 @@
 
                     <div class="form-group">
                         <label for="ai_model_name">Velocidad y Modelo</label>
-                        <select id="ai_model_name" name="ai_model_name" class="form-control">
+                        <select id="ai_model_name" name="ai_model_name" class="form-control" style="width: 100%; max-width: 100%;">
                             <option value="gemini-1.5-flash" {% if system_config.ai_model_name == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash (Súper Rápido, ~2s, Económico)</option>
                             <option value="gemini-2.5-flash" {% if system_config.ai_model_name == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
                             <option value="gemini-1.5-pro" {% if system_config.ai_model_name == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro (Razonamiento Complejo, ~10s)</option>
@@ -26,7 +26,7 @@
 
                     <div class="form-group">
                         <label for="ai_system_prompt">Comportamiento (System Prompt)</label>
-                        <textarea id="ai_system_prompt" name="ai_system_prompt" class="form-control" rows="16" style="font-family: monospace; font-size: 1rem; line-height: 1.6; background-color: #f8f9fa; color: #333; padding: 15px;" placeholder="Eres un asistente de ventas...">{{ system_config.ai_system_prompt or '' }}</textarea>
+                        <textarea id="ai_system_prompt" name="ai_system_prompt" class="form-control" rows="16" style="width: 100%; max-width: 100%; font-family: monospace; font-size: 1rem; line-height: 1.6; background-color: #f8f9fa; color: #333; padding: 15px;" placeholder="Eres un asistente de ventas...">{{ system_config.ai_system_prompt or '' }}</textarea>
                     </div>
 
                     <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fa-solid fa-save"></i> Guardar Cambios en IA</button>

@@ -22,7 +22,7 @@ async def seed():
             print("Creating default admin user...")
             admin_user = User(
                 name="Agente Admin",
-                email="admin@sales-ai.com",
+                email="admin@suple.com",
                 password_hash=pwd_context.hash("admin123"),
                 role="admin",
                 is_active=True
