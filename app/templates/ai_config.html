@@ -3,17 +3,15 @@
 {% block content %}
 <div class="row">
     <!-- Configuration Panel -->
-    <div class="col-md-5">
+    <div class="col-md-12">
         <div class="card" style="margin-bottom: 20px;">
             <div class="card-header">
                 <h2>Configuración del Agente IA</h2>
             </div>
             <div class="card-body">
                 <form id="ai-config-form">
-                    <div class="form-group">
-                        <label for="google_gemini_api_key">Google Gemini API Key</label>
-                        <input type="text" id="google_gemini_api_key" name="google_gemini_api_key" class="form-control" placeholder="Pega tu nueva llave aquí..." value="{{ system_config.google_gemini_api_key or '' }}">
-                        <small style="color:var(--color-text-secondary); display:block; margin-top:5px;">Esta llave está encriptada en la base de datos. Pega una nueva solo si deseas actualizarla.</small>
+                    <div class="alert alert-info" style="margin-bottom: 20px; font-size: 0.9rem;">
+                        <i class="fa-solid fa-circle-info"></i> El API Key de Google Gemini ahora se configura de forma segura mediante el archivo <code>.env</code> en el servidor (GEMINI_API_KEY).
                     </div>
 
                     <div class="form-group">
@@ -28,7 +26,7 @@
 
                     <div class="form-group">
                         <label for="ai_system_prompt">Comportamiento (System Prompt)</label>
-                        <textarea id="ai_system_prompt" name="ai_system_prompt" class="form-control" rows="12" placeholder="Eres un asistente de ventas...">{{ system_config.ai_system_prompt or '' }}</textarea>
+                        <textarea id="ai_system_prompt" name="ai_system_prompt" class="form-control" rows="16" style="font-family: monospace; font-size: 1rem; line-height: 1.6; background-color: #f8f9fa; color: #333; padding: 15px;" placeholder="Eres un asistente de ventas...">{{ system_config.ai_system_prompt or '' }}</textarea>
                     </div>
 
                     <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fa-solid fa-save"></i> Guardar Cambios en IA</button>
@@ -57,9 +55,11 @@
             </div>
         </div>
     </div>
+</div>
 
+<div class="row">
     <!-- Live Telemetry -->
-    <div class="col-md-7">
+    <div class="col-md-12">
         <div class="card" style="margin-bottom: 20px;">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>Monitor de Telemetría (Traza de Pensamiento)</h2>
@@ -97,17 +97,10 @@ Cargando logs del servidor...
         document.getElementById('ai-config-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const apiKeyInput = document.getElementById('google_gemini_api_key').value.trim();
             const configData = {
                 ai_model_name: document.getElementById('ai_model_name').value,
                 ai_system_prompt: document.getElementById('ai_system_prompt').value
             };
-            
-            if (apiKeyInput && !apiKeyInput.startsWith("********")) {
-                configData.google_gemini_api_key = apiKeyInput;
-            } else if (!apiKeyInput) {
-                configData.google_gemini_api_key = null;
-            }
 
             const api = new ApiClient();
             try {

@@ -30,7 +30,6 @@ class SystemConfig(Base):
     
     # AI Integration customizations
     ai_system_prompt = Column(String, default="Eres un asistente muy util para ventas de nuestra tienda.")
-    google_gemini_api_key = Column(String, nullable=True)
     ai_model_name = Column(String, default="gemini-1.5-flash")
 
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

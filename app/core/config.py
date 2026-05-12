@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     
     # Internal Security
     ENCRYPTION_KEY: Union[str, None] = None
+    
+    # AI Config
+    GEMINI_API_KEY: str
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

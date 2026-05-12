@@ -26,8 +26,6 @@ async def get_config(
 
     return config
 
-from app.core.security import encrypt_value
-
 @router.put("/", response_model=SystemConfigSchema)
 async def update_config(
     config_in: SystemConfigUpdate,
@@ -42,16 +40,6 @@ async def update_config(
         db.add(config)
     
     update_data = config_in.model_dump(exclude_unset=True)
-    
-    # Handle API Key Securely
-    if "google_gemini_api_key" in update_data:
-        new_key = update_data["google_gemini_api_key"]
-        if new_key and new_key.startswith("********"):
-            # It's a masked string, don't update it!
-            del update_data["google_gemini_api_key"]
-        else:
-            # Encrypt the real key before saving
-            update_data["google_gemini_api_key"] = encrypt_value(new_key)
             
     for field, value in update_data.items():
         setattr(config, field, value)

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
+from app.core.config import settings
 from app.models.system import SystemConfig
 from app.models.chat import ChatMessage, AILog
 from app.models.customers import Customer
@@ -393,8 +394,6 @@ gemini_tools = [
 ]
 
 
-from app.core.security import decrypt_value
-
 async def execute_ai_agent(phone: str, user_message_content: str, message_type: str = "text"):
     """
     Main Loop for the AI Logic. Intercepts webhook payload, thinks, runs tools, and replies.
@@ -403,16 +402,11 @@ async def execute_ai_agent(phone: str, user_message_content: str, message_type: 
     
     async with AsyncSessionLocal() as db:
         config = await _get_global_config(db)
-        if not config or not config.google_gemini_api_key:
-            logger.error("No Gemini API Key defined in DB.")
+        if not settings.GEMINI_API_KEY:
+            logger.error("No Gemini API Key defined in .env.")
             return
 
-        decrypted_key = decrypt_value(config.google_gemini_api_key)
-        if not decrypted_key:
-            logger.error("Gemini API Key could not be decrypted.")
-            return
-
-        client = genai.Client(api_key=decrypted_key)
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
         model_name = config.ai_model_name or "gemini-1.5-flash"
         if model_name.startswith("models/"):
             model_name = model_name.replace("models/", "")
