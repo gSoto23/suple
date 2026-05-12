@@ -1,5 +1,6 @@
 # Environments
 .env
+.env.*
 .venv
 env/
 venv/
@@ -41,6 +42,7 @@ Thumbs.db
 
 # Test Scripts
 test_*.py
+run_*.py
 
 # IDE
 .vscode/
