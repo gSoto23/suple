@@ -199,7 +199,7 @@ User=ubuntu
 Group=www-data
 WorkingDirectory=/var/www/suple
 Environment="PATH=/var/www/suple/.venv/bin"
-ENVIRONMENT_FILE=/var/www/suple/.env
+EnvironmentFile=/var/www/suple/.env
 ExecStart=/var/www/suple/.venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
 
 [Install]
@@ -219,7 +219,7 @@ sudo systemctl status suple
 Para manejar toda la carga de Inteligencia Artificial sin bloquear Gunicorn, levantamos un entorno de Celery escuchando a Redis.
 
 ```bash
-sudo nano /etc/systemd/system/suple-celery.service
+sudo nano /etc/systemd/system/suplementos-celery.service
 ```
 
 Pega lo siguiente:
@@ -243,8 +243,8 @@ WantedBy=multi-user.target
 
 Inícialo igual que la API web:
 ```bash
-sudo systemctl start suple-celery
-sudo systemctl enable suple-celery
+sudo systemctl start suplementos-celery
+sudo systemctl enable suplementos-celery
 ```
 
 ---
@@ -332,7 +332,7 @@ alembic upgrade head
 
 echo "Reiniciando servicio..."
 sudo systemctl restart suple
-sudo systemctl restart suple-celery
+sudo systemctl restart suplementos-celery
 
 echo "Deployment finalizado con éxito!"
 ```
@@ -346,4 +346,4 @@ Simplemente corre los comandos del script:
 3. `source .venv/bin/activate && pip install -r requirements.txt` (si hubo cambios en librerías)
 4. `alembic upgrade head` (si hubo cambios en BD)
 5. `sudo systemctl restart suple`
-6. `sudo systemctl restart suple-celery` (Obligatorio si cambiaste utilidades de Inteligencia Artificial)
+6. `sudo systemctl restart suplementos-celery` (Obligatorio si cambiaste utilidades de Inteligencia Artificial)
